@@ -2,7 +2,7 @@
 
 An unofficial, fan-made web adaptation of the **Turing Machine** logic-puzzle board game.
 
-**Play it in your browser:** <https://ironlord02.github.io/turing-machine-web/>
+**Play it in your browser:** <https://ironlord02.github.io/unofficial-turing-machine/>
 
 > [!IMPORTANT]
 > **This is an unofficial fan project.**
@@ -82,7 +82,7 @@ There is also a legacy CSS compatibility layer for browsers without CSS custom p
 
 ## Running it
 
-Play it live: <https://ironlord02.github.io/turing-machine-web/>
+Play it live: <https://ironlord02.github.io/unofficial-turing-machine/>
 
 ```
 index.html        the landing page (served at /)
