@@ -64,11 +64,16 @@ The implementation in this repository is independent, written from scratch by Ir
 
 This project ships a level generator that builds playable puzzles with a unique solution.
 
-It is **not the official algorithm**. It is **not an original invention** by this project's author. It is a reimplementation of publicly known behaviour, written independently.
+**What was actually taken from prior art, stated precisely:** the *approach* to level generation. The existing `amoshk/turing-web` implementation provided the starting point for how puzzles get built. That starting point was then **rewritten and changed** — it was not reused as code.
 
-Stated without hedging: the algorithm works perfectly and reliably, and it is neither official nor original.
+No code was copied. What carried over is the general idea, which was openly available in that prior art and in the game itself. The implementation is this project's own.
 
-The official level generator lives at <https://turingmachine.info/> and belongs to Le Scorpion Masqué.
+It is also:
+
+- **Not the official algorithm.** The official level generator belongs to Le Scorpion Masqué and lives at <https://turingmachine.info/>.
+- **Not an original invention** by this project's author.
+
+Stated without hedging: the algorithm works perfectly and reliably, it works independently of prior art, and it is neither official nor an original invention.
 
 ---
 
