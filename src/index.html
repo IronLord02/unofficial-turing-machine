@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Turing Machine</title>
+    <title>Turing Machine — Unofficial Web Adaptation | Free Online Deduction Puzzle</title>
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
@@ -49,7 +49,10 @@
                     <input id="colorblind" type="checkbox"> <span id="colorblind-label">Colorblind</span>
                 </label>
             </div>
+            <button id="tutorial" class="tutorial-btn" type="button" aria-label="How to play" title="How to play">?</button>
         </header>
+
+        <div id="level-status" class="level-status" hidden></div>
 
         <div class="game-layout">
             <main class="game-main">
@@ -94,9 +97,13 @@
                     <button id="pass-turn" class="btn btn-primary">Pass Turn</button>
                 </div>
 
-                <section class="verifiers-grid" id="verifiers-grid">
-                    <!-- Verifier rectangles injected by JS -->
-                </section>
+                <div class="verifiers-area">
+                    <button id="verifiers-help" class="verifiers-help-btn" type="button" aria-label="Verifier help">?</button>
+                    <button id="verifiers-mark" class="verifiers-help-btn verifiers-mark-btn" type="button" aria-label="Mark verifier options">&#9998;</button>
+                    <section class="verifiers-grid" id="verifiers-grid">
+                        <!-- Verifier rectangles injected by JS -->
+                    </section>
+                </div>
             </main>
 
             <aside class="game-sidebar">
@@ -109,6 +116,50 @@
     </div>
 
     <div id="toast" class="toast"></div>
+
+    <div id="solution-modal" class="modal-overlay">
+        <div class="modal-card solution-card">
+            <button id="solution-modal-close" class="modal-close" type="button">&times;</button>
+            <h2 id="solution-modal-title" class="modal-title"></h2>
+            <div id="solution-slots" class="modal-slots"></div>
+            <div class="modal-actions solution-check-actions">
+                <button id="solution-check" class="btn btn-primary" type="button"></button>
+            </div>
+            <div id="solution-result" class="modal-result"></div>
+            <div class="modal-actions">
+                <button id="solution-newgame" class="btn btn-primary" type="button"></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="verifiers-help-modal" class="modal-overlay">
+        <div class="modal-card verifiers-help-card">
+            <button id="verifiers-help-close" class="modal-close" type="button">&times;</button>
+            <h2 id="verifiers-help-title" class="modal-title"></h2>
+            <div id="verifiers-help-list" class="verifiers-help-list"></div>
+        </div>
+    </div>
+
+    <div id="tutorial-modal" class="modal-overlay">
+        <div class="modal-card tutorial-card">
+            <button id="tutorial-close" class="modal-close" type="button">&times;</button>
+            <h2 id="tutorial-title" class="modal-title"></h2>
+            <div id="tutorial-body" class="tutorial-body"></div>
+            <div class="modal-actions">
+                <button id="tutorial-gotit" class="btn btn-primary" type="button"></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="verifiers-mark-modal" class="modal-overlay">
+        <div class="modal-card verifiers-mark-card">
+            <button id="verifiers-mark-close" class="modal-close" type="button">&times;</button>
+            <h2 id="verifiers-mark-title" class="modal-title"></h2>
+            <div id="verifiers-mark-name" class="mark-verifier-name"></div>
+            <div id="verifiers-mark-chips" class="mark-chips-row"></div>
+            <div id="verifiers-mark-hint" class="mark-hint"></div>
+        </div>
+    </div>
 
     <script src="../js/game.js"></script>
 </body>

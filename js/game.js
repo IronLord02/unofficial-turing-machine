@@ -63,6 +63,10 @@
     var criterias = null;
     var level = null;
     var selectedCode = ['x', 'x', 'x']; // A, B, C
+    var gameOver = false;               // solution checked / given up: board is locked down
+    var modalGuess = null;              // current guess inside the solution modal
+    var markMode = false;               // pencil mode: verifiers are selectable for marking
+    var verifierMarks = {};             // criterion name -> Set of marked opts (visual notes only)
 
     // Turn-based game state (physical game rules: max 3 verifications per turn)
     var turnNumber = 1;
@@ -73,6 +77,8 @@
     var verifiedIndices = {};    // verifier index -> result (true=green, false=red) this turn
     var turnResults = [];        // [{index, result}] verifications accumulated this turn
     var history = [];            // [{turn, code, verifications:[{index, result}]}] finalized when the turn passes
+    var selectedVerifiers = {};  // verifier index -> true (pending reveal this turn)
+    var revealedThisTurn = false; // reveal animation ran; button now says "Pass Turn"
 
     // --- Pattern Loading ---
     function patternLoad(data) {
@@ -831,6 +837,270 @@
     }
 
     // ============================================================
+    // Detailed verifier explanations (pedagogical, NO answer hints)
+    // ============================================================
+    var criteriaExplainBase = {
+        en: {
+            'A = | > 1': "Compares digit A against 1: it tells you whether A is exactly 1 or greater than 1.",
+            'A < | = | > 3': "Compares digit A against 3: less than, equal to, or greater than 3.",
+            'B < | = | > 3': "Compares digit B against 3: less than, equal to, or greater than 3.",
+            'B < | = | > 4': "Compares digit B against 4: less than, equal to, or greater than 4.",
+            'A Even | Odd': "Tells you whether digit A is even (2 or 4) or odd (1, 3 or 5).",
+            'B Even | Odd': "Tells you whether digit B is even (2 or 4) or odd (1, 3 or 5).",
+            'C Even | Odd': "Tells you whether digit C is even (2 or 4) or odd (1, 3 or 5).",
+            '(0 1 2 3)x 1': "Counts how many times digit 1 appears in the whole code: 0, 1, 2 or 3 times.",
+            '(0 1 2 3)x 3': "Counts how many times digit 3 appears in the whole code: 0, 1, 2 or 3 times.",
+            '(0 1 2 3)x 4': "Counts how many times digit 4 appears in the whole code: 0, 1, 2 or 3 times.",
+            'A < | = | > B': "Compares A and B: whether A is less than, equal to, or greater than B.",
+            'A < | = | > C': "Compares A and C: whether A is less than, equal to, or greater than C.",
+            'B < | = | > C': "Compares B and C: whether B is less than, equal to, or greater than C.",
+            '(A < BC) | (B < AC) | (C < AB)': "Tells you which digit is the smallest. A is chosen when A is smaller than both B and C, etc.",
+            '(A > BC) | (B > AC) | (C > AB)': "Tells you which digit is the largest. A is chosen when A is greater than both B and C, etc.",
+            'Even > | < Odd': "Compares how many even digits the code has against how many odd digits: more evens or more odds.",
+            '(0 1 2 3)x Even': "Counts how many of the 3 digits are even (2 or 4): 0, 1, 2 or 3.",
+            '(A + B + C) Even | Odd': "Adds all three digits and tells you whether the total is even or odd.",
+            '(A + B) < | = | > 6': "Adds A and B and compares the result against 6: less than, equal to, or greater than 6.",
+            '(0/1 2 3)x X': "Looks at repeated digits: no digit repeats, exactly one pair of equal digits, or three equal digits.",
+            'X X Y Yes | No': "Asks whether the code has EXACTLY one pair of equal digits: yes or no.",
+            '(A < B < C) | (A > B > C) | (A ? B ? C)': "Checks the order of the digits: strictly ascending, strictly descending, or neither.",
+            '(A + B + C) < | = | > 6': "Adds all three digits and compares the total against 6.",
+            '(0 2 3) Increment': "Checks +1 steps between consecutive digits (B = A+1 and/or C = B+1): none, exactly one, or both.",
+            '(0 2 3) Increment/Decrement': "Checks steps of +1 or -1 between consecutive digits: none, exactly one, or both.",
+            '(A | B | C) < 3': "Tells you which digit (A, B or C) is the one that is less than 3.",
+            '(A | B | C) < 4': "Tells you which digit (A, B or C) is the one that is less than 4.",
+            '(A | B | C) = 1': "Tells you which digit (A, B or C) is exactly 1.",
+            '(A | B | C) = 3': "Tells you which digit (A, B or C) is exactly 3.",
+            '(A | B | C) = 4': "Tells you which digit (A, B or C) is exactly 4.",
+            '(A | B | C) > 1': "Tells you which digit (A, B or C) is greater than 1.",
+            '(A | B | C) > 3': "Tells you which digit (A, B or C) is greater than 3.",
+            '(A | B | C) Even | Odd': "Names one digit and tells you whether that digit is even or odd (e.g. 'A is even').",
+            '(A <= BC) | (B <= AC) | (C <= AB)': "Tells you which digit is the smallest, counting ties: A when A ≤ B and A ≤ C, etc.",
+            '(A >= BC) | (B >= AC) | (C >= AB)': "Tells you which digit is the largest, counting ties: A when A ≥ B and A ≥ C, etc.",
+            '(A + B + C) = 3x | 4x | 5x': "Adds all three digits and tells you whether the total is a multiple of 3, 4 or 5.",
+            '(A + B) | (B + C) | (A + C) = 4': "Adds pairs of digits: tells you which pair (A+B, B+C or A+C) sums to exactly 4.",
+            '(A + B) | (B + C) | (A + C) = 6': "Adds pairs of digits: tells you which pair (A+B, B+C or A+C) sums to exactly 6.",
+            '(A | B | C) = | > 1': "Names a digit and tells you whether that digit is exactly 1 or greater than 1.",
+            '(A | B | C) < | = | > 3': "Names a digit and tells you whether that digit is less than, equal to, or greater than 3.",
+            '(A | B | C) < | = | > 4': "Names a digit and tells you whether that digit is less than, equal to, or greater than 4.",
+            '(A < | > BC) | (B < | > AC) | (C < | > AB)': "Tells you which digit is the smallest OR which is the largest: it names a digit and says if it is the min or the max.",
+            'A < | = | > (B | C)': "Compares A against B or C: it names the other digit and gives the comparison (<, = or >).",
+            'B < | = | > (A | C)': "Compares B against A or C: it names the other digit and gives the comparison (<, = or >).",
+            '(0 1 2 3)x 1 | 3': "Tells you which digit it is counting (1s or 3s) and how many times that digit appears (0-3).",
+            '(0 1 2 3)x 3 | 4': "Tells you which digit it is counting (3s or 4s) and how many times that digit appears (0-3).",
+            '(0 1 2 3)x 1 | 4': "Tells you which digit it is counting (1s or 4s) and how many times that digit appears (0-3).",
+            '(A | B | C) < | = | > (A | B | C)': "Compares two of the three digits: it names the pair (A-B, B-C or A-C) and gives the comparison (<, = or >)."
+        },
+        es: {
+            'A = | > 1': "Compara el dígito A contra 1: te dice si A es exactamente 1 o si es mayor que 1.",
+            'A < | = | > 3': "Compara el dígito A contra 3: menor, igual o mayor que 3.",
+            'B < | = | > 3': "Compara el dígito B contra 3: menor, igual o mayor que 3.",
+            'B < | = | > 4': "Compara el dígito B contra 4: menor, igual o mayor que 4.",
+            'A Even | Odd': "Te dice si el dígito A es par (2 o 4) o impar (1, 3 o 5).",
+            'B Even | Odd': "Te dice si el dígito B es par (2 o 4) o impar (1, 3 o 5).",
+            'C Even | Odd': "Te dice si el dígito C es par (2 o 4) o impar (1, 3 o 5).",
+            '(0 1 2 3)x 1': "Cuenta cuántas veces aparece el dígito 1 en todo el código: 0, 1, 2 o 3 veces.",
+            '(0 1 2 3)x 3': "Cuenta cuántas veces aparece el dígito 3 en todo el código: 0, 1, 2 o 3 veces.",
+            '(0 1 2 3)x 4': "Cuenta cuántas veces aparece el dígito 4 en todo el código: 0, 1, 2 o 3 veces.",
+            'A < | = | > B': "Compara A con B: si A es menor, igual o mayor que B.",
+            'A < | = | > C': "Compara A con C: si A es menor, igual o mayor que C.",
+            'B < | = | > C': "Compara B con C: si B es menor, igual o mayor que C.",
+            '(A < BC) | (B < AC) | (C < AB)': "Te dice cuál dígito es el menor. A cuando A es menor que B y C a la vez, etc.",
+            '(A > BC) | (B > AC) | (C > AB)': "Te dice cuál dígito es el mayor. A cuando A es mayor que B y C a la vez, etc.",
+            'Even > | < Odd': "Compara cuántos dígitos pares tiene el código contra cuántos impares: más pares o más impares.",
+            '(0 1 2 3)x Even': "Cuenta cuántos de los 3 dígitos son pares (2 o 4): 0, 1, 2 o 3.",
+            '(A + B + C) Even | Odd': "Suma los tres dígitos y te dice si el total es par o impar.",
+            '(A + B) < | = | > 6': "Suma A y B y compara el resultado contra 6: menor, igual o mayor que 6.",
+            '(0/1 2 3)x X': "Mira los dígitos repetidos: ninguno se repite, hay exactamente un par igual, o tres iguales.",
+            'X X Y Yes | No': "Pregunta si el código tiene EXACTAMENTE un par de dígitos iguales: sí o no.",
+            '(A < B < C) | (A > B > C) | (A ? B ? C)': "Revisa el orden de los dígitos: ascendente estricto, descendente estricto, o ninguno.",
+            '(A + B + C) < | = | > 6': "Suma los tres dígitos y compara el total contra 6.",
+            '(0 2 3) Increment': "Revisa pasos de +1 entre dígitos consecutivos (B = A+1 y/o C = B+1): ninguno, uno o ambos.",
+            '(0 2 3) Increment/Decrement': "Revisa pasos de +1 o -1 entre dígitos consecutivos: ninguno, uno o ambos.",
+            '(A | B | C) < 3': "Te dice cuál dígito (A, B o C) es el que es menor que 3.",
+            '(A | B | C) < 4': "Te dice cuál dígito (A, B o C) es el que es menor que 4.",
+            '(A | B | C) = 1': "Te dice cuál dígito (A, B o C) es exactamente 1.",
+            '(A | B | C) = 3': "Te dice cuál dígito (A, B o C) es exactamente 3.",
+            '(A | B | C) = 4': "Te dice cuál dígito (A, B o C) es exactamente 4.",
+            '(A | B | C) > 1': "Te dice cuál dígito (A, B o C) es mayor que 1.",
+            '(A | B | C) > 3': "Te dice cuál dígito (A, B o C) es mayor que 3.",
+            '(A | B | C) Even | Odd': "Nombra un dígito y te dice si ese dígito es par o impar (ej.: 'A es par').",
+            '(A <= BC) | (B <= AC) | (C <= AB)': "Te dice cuál dígito es el menor, contando empates: A cuando A ≤ B y A ≤ C, etc.",
+            '(A >= BC) | (B >= AC) | (C >= AB)': "Te dice cuál dígito es el mayor, contando empates: A cuando A ≥ B y A ≥ C, etc.",
+            '(A + B + C) = 3x | 4x | 5x': "Suma los tres dígitos y te dice si el total es múltiplo de 3, 4 o 5.",
+            '(A + B) | (B + C) | (A + C) = 4': "Suma pares de dígitos: te dice cuál par (A+B, B+C o A+C) da exactamente 4.",
+            '(A + B) | (B + C) | (A + C) = 6': "Suma pares de dígitos: te dice cuál par (A+B, B+C o A+C) da exactamente 6.",
+            '(A | B | C) = | > 1': "Nombra un dígito y te dice si ese dígito es exactamente 1 o mayor que 1.",
+            '(A | B | C) < | = | > 3': "Nombra un dígito y te dice si ese dígito es menor, igual o mayor que 3.",
+            '(A | B | C) < | = | > 4': "Nombra un dígito y te dice si ese dígito es menor, igual o mayor que 4.",
+            '(A < | > BC) | (B < | > AC) | (C < | > AB)': "Te dice cuál dígito es el menor O cuál es el mayor: nombra un dígito y dice si es el mín o el máx.",
+            'A < | = | > (B | C)': "Compara A contra B o C: nombra el otro dígito y da la comparación (<, = o >).",
+            'B < | = | > (A | C)': "Compara B contra A o C: nombra el otro dígito y da la comparación (<, = o >).",
+            '(0 1 2 3)x 1 | 3': "Te dice qué dígito está contando (1 o 3) y cuántas veces aparece ese dígito (0-3).",
+            '(0 1 2 3)x 3 | 4': "Te dice qué dígito está contando (3 o 4) y cuántas veces aparece ese dígito (0-3).",
+            '(0 1 2 3)x 1 | 4': "Te dice qué dígito está contando (1 o 4) y cuántas veces aparece ese dígito (0-3).",
+            '(A | B | C) < | = | > (A | B | C)': "Compara dos de los tres dígitos: nombra el par (A-B, B-C o A-C) y da la comparación (<, = o >)."
+        },
+        fr: {
+            'A = | > 1': "Compare le chiffre A à 1 : vous dit si A vaut exactement 1 ou s'il est supérieur à 1.",
+            'A < | = | > 3': "Compare le chiffre A à 3 : inférieur, égal ou supérieur à 3.",
+            'B < | = | > 3': "Compare le chiffre B à 3 : inférieur, égal ou supérieur à 3.",
+            'B < | = | > 4': "Compare le chiffre B à 4 : inférieur, égal ou supérieur à 4.",
+            'A Even | Odd': "Vous dit si le chiffre A est pair (2 ou 4) ou impair (1, 3 ou 5).",
+            'B Even | Odd': "Vous dit si le chiffre B est pair (2 ou 4) ou impair (1, 3 ou 5).",
+            'C Even | Odd': "Vous dit si le chiffre C est pair (2 ou 4) ou impair (1, 3 ou 5).",
+            '(0 1 2 3)x 1': "Compte combien de fois le chiffre 1 apparaît dans tout le code : 0, 1, 2 ou 3 fois.",
+            '(0 1 2 3)x 3': "Compte combien de fois le chiffre 3 apparaît dans tout le code : 0, 1, 2 ou 3 fois.",
+            '(0 1 2 3)x 4': "Compte combien de fois le chiffre 4 apparaît dans tout le code : 0, 1, 2 ou 3 fois.",
+            'A < | = | > B': "Compare A et B : si A est inférieur, égal ou supérieur à B.",
+            'A < | = | > C': "Compare A et C : si A est inférieur, égal ou supérieur à C.",
+            'B < | = | > C': "Compare B et C : si B est inférieur, égal ou supérieur à C.",
+            '(A < BC) | (B < AC) | (C < AB)': "Vous dit quel chiffre est le plus petit. A est choisi quand A est plus petit que B et C à la fois, etc.",
+            '(A > BC) | (B > AC) | (C > AB)': "Vous dit quel chiffre est le plus grand. A est choisi quand A est plus grand que B et C à la fois, etc.",
+            'Even > | < Odd': "Compare combien de chiffres pairs contient le code par rapport aux impairs : plus de pairs ou plus d'impairs.",
+            '(0 1 2 3)x Even': "Compte combien des 3 chiffres sont pairs (2 ou 4) : 0, 1, 2 ou 3.",
+            '(A + B + C) Even | Odd': "Additionne les trois chiffres et vous dit si le total est pair ou impair.",
+            '(A + B) < | = | > 6': "Additionne A et B et compare le résultat à 6 : inférieur, égal ou supérieur à 6.",
+            '(0/1 2 3)x X': "Regarde les chiffres répétés : aucun chiffre ne se répète, exactement une paire identique, ou trois chiffres identiques.",
+            'X X Y Yes | No': "Demande si le code contient EXACTEMENT une paire de chiffres identiques : oui ou non.",
+            '(A < B < C) | (A > B > C) | (A ? B ? C)': "Vérifie l'ordre des chiffres : strictement croissant, strictement décroissant, ou aucun des deux.",
+            '(A + B + C) < | = | > 6': "Additionne les trois chiffres et compare le total à 6.",
+            '(0 2 3) Increment': "Vérifie les étapes de +1 entre chiffres consécutifs (B = A+1 et/ou C = B+1) : aucune, une ou les deux.",
+            '(0 2 3) Increment/Decrement': "Vérifie les étapes de +1 ou -1 entre chiffres consécutifs : aucune, une ou les deux.",
+            '(A | B | C) < 3': "Vous dit quel chiffre (A, B ou C) est celui qui est inférieur à 3.",
+            '(A | B | C) < 4': "Vous dit quel chiffre (A, B ou C) est celui qui est inférieur à 4.",
+            '(A | B | C) = 1': "Vous dit quel chiffre (A, B ou C) vaut exactement 1.",
+            '(A | B | C) = 3': "Vous dit quel chiffre (A, B ou C) vaut exactement 3.",
+            '(A | B | C) = 4': "Vous dit quel chiffre (A, B ou C) vaut exactement 4.",
+            '(A | B | C) > 1': "Vous dit quel chiffre (A, B ou C) est supérieur à 1.",
+            '(A | B | C) > 3': "Vous dit quel chiffre (A, B ou C) est supérieur à 3.",
+            '(A | B | C) Even | Odd': "Nomme un chiffre et vous dit si ce chiffre est pair ou impair (ex. : « A est pair »).",
+            '(A <= BC) | (B <= AC) | (C <= AB)': "Vous dit quel chiffre est le plus petit, égalités comprises : A quand A ≤ B et A ≤ C, etc.",
+            '(A >= BC) | (B >= AC) | (C >= AB)': "Vous dit quel chiffre est le plus grand, égalités comprises : A quand A ≥ B et A ≥ C, etc.",
+            '(A + B + C) = 3x | 4x | 5x': "Additionne les trois chiffres et vous dit si le total est un multiple de 3, 4 ou 5.",
+            '(A + B) | (B + C) | (A + C) = 4': "Additionne des paires de chiffres : vous dit quelle paire (A+B, B+C ou A+C) donne exactement 4.",
+            '(A + B) | (B + C) | (A + C) = 6': "Additionne des paires de chiffres : vous dit quelle paire (A+B, B+C ou A+C) donne exactement 6.",
+            '(A | B | C) = | > 1': "Nomme un chiffre et vous dit si ce chiffre vaut exactement 1 ou s'il est supérieur à 1.",
+            '(A | B | C) < | = | > 3': "Nomme un chiffre et vous dit si ce chiffre est inférieur, égal ou supérieur à 3.",
+            '(A | B | C) < | = | > 4': "Nomme un chiffre et vous dit si ce chiffre est inférieur, égal ou supérieur à 4.",
+            '(A < | > BC) | (B < | > AC) | (C < | > AB)': "Vous dit quel chiffre est le plus petit OU lequel est le plus grand : il nomme un chiffre et dit s'il est le min ou le max.",
+            'A < | = | > (B | C)': "Compare A à B ou C : il nomme l'autre chiffre et donne la comparaison (<, = ou >).",
+            'B < | = | > (A | C)': "Compare B à A ou C : il nomme l'autre chiffre et donne la comparaison (<, = ou >).",
+            '(0 1 2 3)x 1 | 3': "Vous dit quel chiffre il compte (les 1 ou les 3) et combien de fois ce chiffre apparaît (0-3).",
+            '(0 1 2 3)x 3 | 4': "Vous dit quel chiffre il compte (les 3 ou les 4) et combien de fois ce chiffre apparaît (0-3).",
+            '(0 1 2 3)x 1 | 4': "Vous dit quel chiffre il compte (les 1 ou les 4) et combien de fois ce chiffre apparaît (0-3).",
+            '(A | B | C) < | = | > (A | B | C)': "Compare deux des trois chiffres : il nomme la paire (A-B, B-C ou A-C) et donne la comparaison (<, = ou >)."
+        },
+        de: {
+            'A = | > 1': "Vergleicht Ziffer A mit 1: sagt dir, ob A genau 1 oder größer als 1 ist.",
+            'A < | = | > 3': "Vergleicht Ziffer A mit 3: kleiner, gleich oder größer als 3.",
+            'B < | = | > 3': "Vergleicht Ziffer B mit 3: kleiner, gleich oder größer als 3.",
+            'B < | = | > 4': "Vergleicht Ziffer B mit 4: kleiner, gleich oder größer als 4.",
+            'A Even | Odd': "Sagt dir, ob Ziffer A gerade (2 oder 4) oder ungerade (1, 3 oder 5) ist.",
+            'B Even | Odd': "Sagt dir, ob Ziffer B gerade (2 oder 4) oder ungerade (1, 3 oder 5) ist.",
+            'C Even | Odd': "Sagt dir, ob Ziffer C gerade (2 oder 4) oder ungerade (1, 3 oder 5) ist.",
+            '(0 1 2 3)x 1': "Zählt, wie oft die Ziffer 1 im gesamten Code vorkommt: 0, 1, 2 oder 3 Mal.",
+            '(0 1 2 3)x 3': "Zählt, wie oft die Ziffer 3 im gesamten Code vorkommt: 0, 1, 2 oder 3 Mal.",
+            '(0 1 2 3)x 4': "Zählt, wie oft die Ziffer 4 im gesamten Code vorkommt: 0, 1, 2 oder 3 Mal.",
+            'A < | = | > B': "Vergleicht A und B: ob A kleiner, gleich oder größer als B ist.",
+            'A < | = | > C': "Vergleicht A und C: ob A kleiner, gleich oder größer als C ist.",
+            'B < | = | > C': "Vergleicht B und C: ob B kleiner, gleich oder größer als C ist.",
+            '(A < BC) | (B < AC) | (C < AB)': "Sagt dir, welche Ziffer die kleinste ist. A wird gewählt, wenn A kleiner als B und C ist usw.",
+            '(A > BC) | (B > AC) | (C > AB)': "Sagt dir, welche Ziffer die größte ist. A wird gewählt, wenn A größer als B und C ist usw.",
+            'Even > | < Odd': "Vergleicht, wie viele gerade Ziffern der Code hat, mit den ungeraden: mehr gerade oder mehr ungerade.",
+            '(0 1 2 3)x Even': "Zählt, wie viele der 3 Ziffern gerade sind (2 oder 4): 0, 1, 2 oder 3.",
+            '(A + B + C) Even | Odd': "Addiert alle drei Ziffern und sagt dir, ob die Summe gerade oder ungerade ist.",
+            '(A + B) < | = | > 6': "Addiert A und B und vergleicht das Ergebnis mit 6: kleiner, gleich oder größer als 6.",
+            '(0/1 2 3)x X': "Prüft wiederholte Ziffern: keine Ziffer wiederholt sich, genau ein Paar gleicher Ziffern, oder drei gleiche Ziffern.",
+            'X X Y Yes | No': "Fragt, ob der Code GENAU EIN Paar gleicher Ziffern hat: ja oder nein.",
+            '(A < B < C) | (A > B > C) | (A ? B ? C)': "Prüft die Reihenfolge der Ziffern: streng aufsteigend, streng absteigend oder keines von beidem.",
+            '(A + B + C) < | = | > 6': "Addiert alle drei Ziffern und vergleicht die Summe mit 6.",
+            '(0 2 3) Increment': "Prüft +1-Schritte zwischen aufeinanderfolgenden Ziffern (B = A+1 und/oder C = B+1): keiner, genau einer oder beide.",
+            '(0 2 3) Increment/Decrement': "Prüft Schritte von +1 oder -1 zwischen aufeinanderfolgenden Ziffern: keiner, genau einer oder beide.",
+            '(A | B | C) < 3': "Sagt dir, welche Ziffer (A, B oder C) diejenige ist, die kleiner als 3 ist.",
+            '(A | B | C) < 4': "Sagt dir, welche Ziffer (A, B oder C) diejenige ist, die kleiner als 4 ist.",
+            '(A | B | C) = 1': "Sagt dir, welche Ziffer (A, B oder C) genau 1 ist.",
+            '(A | B | C) = 3': "Sagt dir, welche Ziffer (A, B oder C) genau 3 ist.",
+            '(A | B | C) = 4': "Sagt dir, welche Ziffer (A, B oder C) genau 4 ist.",
+            '(A | B | C) > 1': "Sagt dir, welche Ziffer (A, B oder C) größer als 1 ist.",
+            '(A | B | C) > 3': "Sagt dir, welche Ziffer (A, B oder C) größer als 3 ist.",
+            '(A | B | C) Even | Odd': "Nennt eine Ziffer und sagt dir, ob diese Ziffer gerade oder ungerade ist (z. B. ‚A ist gerade').",
+            '(A <= BC) | (B <= AC) | (C <= AB)': "Sagt dir, welche Ziffer die kleinste ist, Gleichstände eingeschlossen: A, wenn A ≤ B und A ≤ C usw.",
+            '(A >= BC) | (B >= AC) | (C >= AB)': "Sagt dir, welche Ziffer die größte ist, Gleichstände eingeschlossen: A, wenn A ≥ B und A ≥ C usw.",
+            '(A + B + C) = 3x | 4x | 5x': "Addiert alle drei Ziffern und sagt dir, ob die Summe ein Vielfaches von 3, 4 oder 5 ist.",
+            '(A + B) | (B + C) | (A + C) = 4': "Addiert Ziffernpaare: sagt dir, welches Paar (A+B, B+C oder A+C) genau 4 ergibt.",
+            '(A + B) | (B + C) | (A + C) = 6': "Addiert Ziffernpaare: sagt dir, welches Paar (A+B, B+C oder A+C) genau 6 ergibt.",
+            '(A | B | C) = | > 1': "Nennt eine Ziffer und sagt dir, ob diese Ziffer genau 1 oder größer als 1 ist.",
+            '(A | B | C) < | = | > 3': "Nennt eine Ziffer und sagt dir, ob diese Ziffer kleiner, gleich oder größer als 3 ist.",
+            '(A | B | C) < | = | > 4': "Nennt eine Ziffer und sagt dir, ob diese Ziffer kleiner, gleich oder größer als 4 ist.",
+            '(A < | > BC) | (B < | > AC) | (C < | > AB)': "Sagt dir, welche Ziffer die kleinste ODER welche die größte ist: er nennt eine Ziffer und sagt, ob sie das Min oder das Max ist.",
+            'A < | = | > (B | C)': "Vergleicht A mit B oder C: er nennt die andere Ziffer und gibt den Vergleich (<, = oder >) an.",
+            'B < | = | > (A | C)': "Vergleicht B mit A oder C: er nennt die andere Ziffer und gibt den Vergleich (<, = oder >) an.",
+            '(0 1 2 3)x 1 | 3': "Sagt dir, welche Ziffer gezählt wird (1er oder 3er) und wie oft diese Ziffer vorkommt (0-3).",
+            '(0 1 2 3)x 3 | 4': "Sagt dir, welche Ziffer gezählt wird (3er oder 4er) und wie oft diese Ziffer vorkommt (0-3).",
+            '(0 1 2 3)x 1 | 4': "Sagt dir, welche Ziffer gezählt wird (1er oder 4er) und wie oft diese Ziffer vorkommt (0-3).",
+            '(A | B | C) < | = | > (A | B | C)': "Vergleicht zwei der drei Ziffern: er nennt das Paar (A-B, B-C oder A-C) und gibt den Vergleich (<, = oder >) an."
+        },
+        ru: {
+            'A = | > 1': "Сравнивает цифру A с 1: говорит, равна ли A ровно 1 или больше 1.",
+            'A < | = | > 3': "Сравнивает цифру A с 3: меньше, равна или больше 3.",
+            'B < | = | > 3': "Сравнивает цифру B с 3: меньше, равна или больше 3.",
+            'B < | = | > 4': "Сравнивает цифру B с 4: меньше, равна или больше 4.",
+            'A Even | Odd': "Говорит, чётная ли цифра A (2 или 4) или нечётная (1, 3 или 5).",
+            'B Even | Odd': "Говорит, чётная ли цифра B (2 или 4) или нечётная (1, 3 или 5).",
+            'C Even | Odd': "Говорит, чётная ли цифра C (2 или 4) или нечётная (1, 3 или 5).",
+            '(0 1 2 3)x 1': "Считает, сколько раз цифра 1 встречается во всём коде: 0, 1, 2 или 3 раза.",
+            '(0 1 2 3)x 3': "Считает, сколько раз цифра 3 встречается во всём коде: 0, 1, 2 или 3 раза.",
+            '(0 1 2 3)x 4': "Считает, сколько раз цифра 4 встречается во всём коде: 0, 1, 2 или 3 раза.",
+            'A < | = | > B': "Сравнивает A и B: меньше ли A, равна или больше B.",
+            'A < | = | > C': "Сравнивает A и C: меньше ли A, равна или больше C.",
+            'B < | = | > C': "Сравнивает B и C: меньше ли B, равна или больше C.",
+            '(A < BC) | (B < AC) | (C < AB)': "Говорит, какая цифра наименьшая. A выбирается, когда A меньше и B, и C, и т. д.",
+            '(A > BC) | (B > AC) | (C > AB)': "Говорит, какая цифра наибольшая. A выбирается, когда A больше и B, и C, и т. д.",
+            'Even > | < Odd': "Сравнивает, сколько в коде чётных цифр и сколько нечётных: больше чётных или больше нечётных.",
+            '(0 1 2 3)x Even': "Считает, сколько из 3 цифр чётные (2 или 4): 0, 1, 2 или 3.",
+            '(A + B + C) Even | Odd': "Складывает все три цифры и говорит, чётная сумма или нечётная.",
+            '(A + B) < | = | > 6': "Складывает A и B и сравнивает результат с 6: меньше, равен или больше 6.",
+            '(0/1 2 3)x X': "Смотрит на повторяющиеся цифры: ни одна цифра не повторяется, ровно одна пара одинаковых, или три одинаковые.",
+            'X X Y Yes | No': "Спрашивает, есть ли в коде РОВНО одна пара одинаковых цифр: да или нет.",
+            '(A < B < C) | (A > B > C) | (A ? B ? C)': "Проверяет порядок цифр: строго возрастающий, строго убывающий или ни тот, ни другой.",
+            '(A + B + C) < | = | > 6': "Складывает все три цифры и сравнивает сумму с 6.",
+            '(0 2 3) Increment': "Проверяет шаги +1 между соседними цифрами (B = A+1 и/или C = B+1): ни одного, ровно один или оба.",
+            '(0 2 3) Increment/Decrement': "Проверяет шаги +1 или -1 между соседними цифрами: ни одного, ровно один или оба.",
+            '(A | B | C) < 3': "Говорит, какая цифра (A, B или C) меньше 3.",
+            '(A | B | C) < 4': "Говорит, какая цифра (A, B или C) меньше 4.",
+            '(A | B | C) = 1': "Говорит, какая цифра (A, B или C) ровно равна 1.",
+            '(A | B | C) = 3': "Говорит, какая цифра (A, B или C) ровно равна 3.",
+            '(A | B | C) = 4': "Говорит, какая цифра (A, B или C) ровно равна 4.",
+            '(A | B | C) > 1': "Говорит, какая цифра (A, B или C) больше 1.",
+            '(A | B | C) > 3': "Говорит, какая цифра (A, B или C) больше 3.",
+            '(A | B | C) Even | Odd': "Называет одну цифру и говорит, чётная она или нечётная (например: «A — чётная»).",
+            '(A <= BC) | (B <= AC) | (C <= AB)': "Говорит, какая цифра наименьшая, с учётом равенств: A, когда A ≤ B и A ≤ C, и т. д.",
+            '(A >= BC) | (B >= AC) | (C >= AB)': "Говорит, какая цифра наибольшая, с учётом равенств: A, когда A ≥ B и A ≥ C, и т. д.",
+            '(A + B + C) = 3x | 4x | 5x': "Складывает все три цифры и говорит, кратно ли общее число 3, 4 или 5.",
+            '(A + B) | (B + C) | (A + C) = 4': "Складывает пары цифр: говорит, какая пара (A+B, B+C или A+C) даёт ровно 4.",
+            '(A + B) | (B + C) | (A + C) = 6': "Складывает пары цифр: говорит, какая пара (A+B, B+C или A+C) даёт ровно 6.",
+            '(A | B | C) = | > 1': "Называет одну цифру и говорит, равна ли она ровно 1 или больше 1.",
+            '(A | B | C) < | = | > 3': "Называет одну цифру и говорит, меньше она, равна или больше 3.",
+            '(A | B | C) < | = | > 4': "Называет одну цифру и говорит, меньше она, равна или больше 4.",
+            '(A < | > BC) | (B < | > AC) | (C < | > AB)': "Говорит, какая цифра наименьшая ИЛИ какая наибольшая: называет цифру и говорит, минимум это или максимум.",
+            'A < | = | > (B | C)': "Сравнивает A с B или C: называет другую цифру и даёт сравнение (<, = или >).",
+            'B < | = | > (A | C)': "Сравнивает B с A или C: называет другую цифру и даёт сравнение (<, = или >).",
+            '(0 1 2 3)x 1 | 3': "Говорит, какую цифру он считает (1 или 3) и сколько раз эта цифра встречается (0-3).",
+            '(0 1 2 3)x 3 | 4': "Говорит, какую цифру он считает (3 или 4) и сколько раз эта цифра встречается (0-3).",
+            '(0 1 2 3)x 1 | 4': "Говорит, какую цифру он считает (1 или 4) и сколько раз эта цифра встречается (0-3).",
+            '(A | B | C) < | = | > (A | B | C)': "Сравнивает две из трёх цифр: называет пару (A-B, B-C или A-C) и даёт сравнение (<, = или >)."
+        }
+    };
+
+    function explainCriterion(n) {
+        var set = criteriaExplainBase[currentLang] || criteriaExplainBase.en;
+        var txt = set[n];
+        if (txt) return txt;
+        txt = criteriaExplainBase.en[n];
+        return txt || '';
+    }
+
+    // ============================================================
     // UI Rendering
     // ============================================================
 
@@ -873,6 +1143,36 @@
     }
 
     function updateTurnUI() {
+        if (gameOver) {
+            var elGo = document.getElementById('verifications-left');
+            if (elGo) {
+                elGo.textContent = t('verifications', [0, maxVerifications]);
+                elGo.className = 'badge badge-blocked';
+            }
+
+            var passGo = document.getElementById('pass-turn');
+            if (passGo) passGo.disabled = true;
+
+            var slotsGo = ['slot-a', 'slot-b', 'slot-c'];
+            for (var sg = 0; sg < 3; sg++) {
+                var buttonsGo = document.getElementById(slotsGo[sg]).querySelectorAll('.slot-btn');
+                for (var bg = 0; bg < buttonsGo.length; bg++) {
+                    buttonsGo[bg].disabled = true;
+                }
+            }
+
+            if (level) {
+                for (var vg = 0; vg < level.length; vg++) {
+                    var relGo = document.getElementById('verifier-' + vg);
+                    if (relGo) relGo.classList.add('blocked');
+                }
+            }
+
+            var solGo = document.getElementById('solution');
+            if (solGo) solGo.disabled = true;
+            return;
+        }
+
         var left = maxVerifications - verificationsUsed;
         var el = document.getElementById('verifications-left');
         if (el) {
@@ -883,7 +1183,13 @@
         var passBtn = document.getElementById('pass-turn');
         if (passBtn) {
             passBtn.disabled = false;
-            passBtn.textContent = t('passTurn');
+            var cheatModeNow = document.getElementById('cheat').checked;
+            var pending = Object.keys(selectedVerifiers).length > 0;
+            if (revealedThisTurn || !pending || turnBlocked || cheatModeNow) {
+                passBtn.textContent = t('passTurn');
+            } else {
+                passBtn.textContent = t('reveal');
+            }
         }
 
         // Lock slot buttons once the turn code is set, unlock otherwise
@@ -915,9 +1221,86 @@
         }
     }
 
+    // Clicking a verifier during normal play marks it as "pending reveal":
+    // the reveal button then shows an animated seal and applies the results.
+    function toggleVerifierSelection(idx) {
+        if (gameOver) return;
+        if (turnBlocked) return;
+        if (revealedThisTurn) return;   // already revealed this turn: verify done
+        if (verifiedIndices[idx] !== undefined) return; // already revealed this turn
+
+        // A full code (A, B, C all set) is required, like the physical game
+        if (selectedCode[0] === 'x' || selectedCode[1] === 'x' || selectedCode[2] === 'x') {
+            showToast(t('needFullCode'));
+            return;
+        }
+
+        var el = document.getElementById('verifier-' + idx);
+        if (!el) return;
+
+        if (selectedVerifiers[idx]) {
+            delete selectedVerifiers[idx];
+            el.classList.remove('pending-reveal');
+        } else {
+            var available = maxVerifications - verificationsUsed;
+            if (Object.keys(selectedVerifiers).length >= available) {
+                showToast(t('revealLimit'));
+                updateTurnUI();
+                return;
+            }
+            selectedVerifiers[idx] = true;
+            el.classList.add('pending-reveal');
+        }
+        updateTurnUI();
+    }
+
+    function doReveal() {
+        if (gameOver) return;
+        if (turnBlocked) return;
+        if (revealedThisTurn) return;
+        if (selectedCode[0] === 'x' || selectedCode[1] === 'x' || selectedCode[2] === 'x') {
+            showToast(t('needFullCode'));
+            return;
+        }
+
+        var idxs = Object.keys(selectedVerifiers).map(Number);
+        if (!idxs.length) return;
+
+        // Lock the code used for this reveal (same rule as a verification)
+        if (turnCode === null) {
+            turnCode = selectedCode.join('');
+            updateTurnUI();
+        }
+
+        var btn = document.getElementById('pass-turn');
+        if (btn) btn.disabled = true;
+
+        // Flip each pending card: at the flip peak (card on edge) the result
+        // is applied, so the second half of the turn shows YES/NO.
+        var flipMs = 500;
+        var swapMs = 225;
+        for (var i = 0; i < idxs.length; i++) {
+            var el = document.getElementById('verifier-' + idxs[i]);
+            if (el) el.classList.add('flipping');
+            (function (idx, card) {
+                setTimeout(function () {
+                    verifyVerifier(idx);
+                    if (card) card.classList.remove('pending-reveal');
+                }, swapMs);
+                setTimeout(function () {
+                    if (card) card.classList.remove('flipping');
+                }, flipMs);
+            })(idxs[i], el);
+        }
+        selectedVerifiers = {};
+        revealedThisTurn = true;
+        updateTurnUI();
+    }
+
     // Clicking a verifier during normal play = verification (consumes 1 of 3).
     // Result is green if the tested code satisfies the secret answer of this criterion.
     function verifyVerifier(idx) {
+        if (gameOver) return;
         if (turnBlocked) return;
         if (verifiedIndices[idx] !== undefined) return; // already verified this turn
 
@@ -974,7 +1357,7 @@
         for (var i = 0; i < level.length; i++) {
             var el = document.getElementById('verifier-' + i);
             if (!el) continue;
-            el.classList.remove('verified-green', 'verified-red', 'locked', 'expanded', 'blocked');
+            el.classList.remove('verified-green', 'verified-red', 'locked', 'expanded', 'blocked', 'pending-reveal');
             var verdict = el.querySelector('.verifier-verdict');
             if (verdict) verdict.textContent = '';
             var answerEl = el.querySelector('.verifier-answer');
@@ -983,6 +1366,7 @@
     }
 
     function passTurn() {
+        if (gameOver) return;
         // Finalize the completed turn into history before advancing
         history.push({
             turn: turnNumber,
@@ -996,6 +1380,8 @@
         turnCode = null;
         verifiedIndices = {};
         turnResults = [];
+        selectedVerifiers = {};
+        revealedThisTurn = false;
         resetVerifiersVisual();
         updateTurnUI();
         renderHistory();
@@ -1094,6 +1480,20 @@
             numDiv.textContent = (i + 1);
             div.appendChild(numDiv);
 
+            // Eye shown over the card while this verifier is pending reveal
+            var eyeStamp = document.createElement('div');
+            eyeStamp.className = 'verifier-eye';
+            var eyeIcon = document.createElement('span');
+            eyeIcon.className = 'verifier-eye-icon';
+            eyeIcon.textContent = '\uD83D\uDC41'; // 👁
+            eyeStamp.appendChild(eyeIcon);
+            div.appendChild(eyeStamp);
+
+            // Red dot shown when the player has marked options for this verifier
+            var markDot = document.createElement('span');
+            markDot.className = 'mark-indicator';
+            div.appendChild(markDot);
+
             // Criterion name (human-readable) and its answer options
             var h = humanizeCriterion(v.name);
             var nameDiv = document.createElement('div');
@@ -1104,7 +1504,7 @@
             if (h.opts.length > 0) {
                 var optsDiv = document.createElement('div');
                 optsDiv.className = 'verifier-opts';
-                optsDiv.textContent = h.opts.join(' · ');
+                renderMarkedOpts(optsDiv, v.name, h.opts);
                 div.appendChild(optsDiv);
             }
 
@@ -1156,6 +1556,12 @@
         for (var i = 0; i < rects.length; i++) {
             rects[i].addEventListener('click', (function (idx) {
                 return function () {
+                    if (gameOver) return;
+                    // Pencil mode: opening the visual-mark editor instead of verifying
+                    if (markMode) {
+                        openVerifierMark(idx);
+                        return;
+                    }
                     var cheatMode = document.getElementById('cheat').checked;
                     if (cheatMode) {
                         this.classList.toggle('expanded');
@@ -1168,7 +1574,7 @@
                         if (countEl) countEl.textContent = countTrue(v.card) + '/' + pattern.pattern.length;
                         return;
                     }
-                    verifyVerifier(idx);
+                    toggleVerifierSelection(idx);
                 };
             })(i));
         }
@@ -1182,7 +1588,7 @@
             for (var b = 0; b < buttons.length; b++) {
                 buttons[b].addEventListener('click', (function (slotIdx, btn) {
                     return function () {
-                        if (turnCode !== null || turnBlocked) return;
+                        if (turnCode !== null || turnBlocked || gameOver) return;
                         // Remove active from siblings
                         var siblings = btn.parentElement.querySelectorAll('.slot-btn');
                         for (var i = 0; i < siblings.length; i++) {
@@ -1209,6 +1615,7 @@
 
         // Reset selection and turn state
         selectedCode = ['x', 'x', 'x'];
+        gameOver = false;
         turnNumber = 1;
         verificationsUsed = 0;
         turnBlocked = false;
@@ -1216,6 +1623,16 @@
         verifiedIndices = {};
         turnResults = [];
         history = [];
+        selectedVerifiers = {};
+        revealedThisTurn = false;
+
+        verifierMarks = {};
+        leaveMarkMode();
+        closeVerifierMark();
+
+        closeSolutionModal();
+        var solBtn = document.getElementById('solution');
+        if (solBtn) solBtn.disabled = false;
 
         var slots = ['slot-a', 'slot-b', 'slot-c'];
         for (var s = 0; s < 3; s++) {
@@ -1302,27 +1719,348 @@
     }
 
     function showSolution() {
+        if (gameOver) return;
         if (!level || level.length === 0) {
             showToast(t('levelGenFailed', [document.getElementById('verifiers').value]));
             return;
         }
-        var s = solutions(level);
-        selectedCode = [String(s[0].n[0]), String(s[0].n[1]), String(s[0].n[2])];
+        openSolutionModal();
+    }
 
-        // Update button states
+    function openSolutionModal() {
+        if (gameOver) return;
+        if (!level || level.length === 0) return;
+
+        modalGuess = ['x', 'x', 'x'];
+
+        document.getElementById('solution-modal-title').textContent = t('solutionTitle');
+
+        var slotsWrap = document.getElementById('solution-slots');
+        slotsWrap.innerHTML = '';
+
+        var names = ['A', 'B', 'C'];
+        for (var i = 0; i < 3; i++) {
+            (function (slotIdx) {
+                var slotEl = document.createElement('div');
+                slotEl.className = 'slot';
+
+                var label = document.createElement('span');
+                label.className = 'slot-label';
+                label.textContent = names[slotIdx];
+                slotEl.appendChild(label);
+
+                var btnGroup = document.createElement('div');
+                btnGroup.className = 'slot-buttons';
+                for (var v = 1; v <= 5; v++) {
+                    (function (val) {
+                        var b = document.createElement('button');
+                        b.className = 'slot-btn modal-slot-btn';
+                        b.type = 'button';
+                        b.setAttribute('data-value', String(val));
+                        b.textContent = String(val);
+                        b.addEventListener('click', function () {
+                            if (gameOver) return;
+                            var sibs = b.parentElement.querySelectorAll('.slot-btn');
+                            for (var k = 0; k < sibs.length; k++) {
+                                sibs[k].classList.remove('active');
+                            }
+                            b.classList.add('active');
+                            modalGuess[slotIdx] = String(val);
+                        });
+                        btnGroup.appendChild(b);
+                    })(v);
+                }
+                slotEl.appendChild(btnGroup);
+                slotsWrap.appendChild(slotEl);
+            })(i);
+        }
+
+        var checkBtn = document.getElementById('solution-check');
+        if (checkBtn) {
+            checkBtn.disabled = false;
+            checkBtn.textContent = t('solutionCheck');
+        }
+
+        var resultEl = document.getElementById('solution-result');
+        resultEl.className = 'modal-result';
+        resultEl.textContent = '';
+
+        var newGameBtn = document.getElementById('solution-newgame');
+        if (newGameBtn) {
+            newGameBtn.style.display = 'none';
+            newGameBtn.textContent = t('solutionNewGame');
+        }
+
+        document.getElementById('solution-modal').classList.add('open');
+    }
+
+    function checkGuessSolution(guess) {
+        if (gameOver) return;
+        if (!level || level.length === 0) return;
+
+        var s = solutions(level);
+        var solCode = [String(s[0].n[0]), String(s[0].n[1]), String(s[0].n[2])];
+        var correct = guess[0] === solCode[0] && guess[1] === solCode[1] && guess[2] === solCode[2];
+
+        var resultEl = document.getElementById('solution-result');
+        var msg = correct ? t('solutionCorrect', [solCode.join('')]) : t('solutionWrong', [solCode.join('')]);
+        resultEl.textContent = msg;
+        resultEl.className = 'modal-result ' + (correct ? 'win' : 'lose');
+
+        var newGameBtn = document.getElementById('solution-newgame');
+        if (newGameBtn) newGameBtn.style.display = 'inline-block';
+
+        var checkBtn = document.getElementById('solution-check');
+        if (checkBtn) checkBtn.disabled = true;
+
+        endGame(solCode);
+    }
+
+    function endGame(solCode) {
+        gameOver = true;
+        updateTurnUI();
+
         var slotIds = ['slot-a', 'slot-b', 'slot-c'];
         for (var i = 0; i < 3; i++) {
             var buttons = document.getElementById(slotIds[i]).querySelectorAll('.slot-btn');
             for (var b = 0; b < buttons.length; b++) {
                 buttons[b].classList.remove('active');
-                if (buttons[b].getAttribute('data-value') === selectedCode[i]) {
+                if (buttons[b].getAttribute('data-value') === solCode[i]) {
                     buttons[b].classList.add('active');
                 }
             }
         }
 
-        showToast(t('solutionFmt', [selectedCode.join('')]));
-        updateLevelStatus(selectedCode.join(''));
+        var solBtn = document.getElementById('solution');
+        if (solBtn) solBtn.disabled = true;
+    }
+
+    function closeSolutionModalAsGiveUp() {
+        if (gameOver) return;
+        if (!level || level.length === 0) {
+            closeSolutionModal();
+            return;
+        }
+        var s = solutions(level);
+        var solCode = [String(s[0].n[0]), String(s[0].n[1]), String(s[0].n[2])];
+        var resultEl = document.getElementById('solution-result');
+        resultEl.className = 'modal-result lose';
+        resultEl.textContent = t('solutionWrong', [solCode.join('')]);
+        var newGameBtn = document.getElementById('solution-newgame');
+        if (newGameBtn) newGameBtn.style.display = 'inline-block';
+        var checkBtn = document.getElementById('solution-check');
+        if (checkBtn) checkBtn.disabled = true;
+        endGame(solCode);
+    }
+
+    function closeSolutionModal() {
+        var modal = document.getElementById('solution-modal');
+        if (modal) modal.classList.remove('open');
+    }
+
+    function openVerifiersHelp() {
+        if (!level || level.length === 0) return;
+        document.getElementById('verifiers-help-title').textContent = t('verifiersHelpTitle');
+        buildVerifiersHelpList();
+        document.getElementById('verifiers-help-modal').classList.add('open');
+    }
+
+    function closeVerifiersHelp() {
+        document.getElementById('verifiers-help-modal').classList.remove('open');
+    }
+
+    function buildTutorial() {
+        var set = (I18N[currentLang] || I18N.en).ui;
+        setText('tutorial-title', set.tutorialTitle);
+        setText('tutorial-gotit', set.tutorialGotIt);
+
+        var body = document.getElementById('tutorial-body');
+        body.innerHTML = '';
+
+        var sections = [
+            { h: set.tutWhatH, ps: [set.tutWhatP] },
+            { h: set.tutHowH, ps: [set.tutHowP1, set.tutHowP2, set.tutHowP3] },
+            { h: set.tutUiH, items: set.tutUiItems }
+        ];
+
+        for (var i = 0; i < sections.length; i++) {
+            var sec = document.createElement('section');
+            sec.className = 'tutorial-section';
+
+            var h = document.createElement('h3');
+            h.textContent = sections[i].h;
+            sec.appendChild(h);
+
+            if (sections[i].ps) {
+                for (var p = 0; p < sections[i].ps.length; p++) {
+                    var par = document.createElement('p');
+                    par.textContent = sections[i].ps[p];
+                    sec.appendChild(par);
+                }
+            }
+            if (sections[i].items) {
+                var ul = document.createElement('ul');
+                ul.className = 'tutorial-list';
+                for (var it = 0; it < sections[i].items.length; it++) {
+                    var li = document.createElement('li');
+                    li.textContent = sections[i].items[it];
+                    ul.appendChild(li);
+                }
+                sec.appendChild(ul);
+            }
+            body.appendChild(sec);
+        }
+    }
+
+    function openTutorial() {
+        buildTutorial();
+        document.getElementById('tutorial-modal').classList.add('open');
+    }
+
+    function closeTutorial() {
+        document.getElementById('tutorial-modal').classList.remove('open');
+    }
+
+    function buildVerifiersHelpList() {
+        var list = document.getElementById('verifiers-help-list');
+        list.innerHTML = '';
+        for (var i = 0; i < level.length; i++) {
+            var v = level[i];
+            var h = humanizeCriterion(v.name);
+            var entry = document.createElement('div');
+            entry.className = 'verifiers-help-entry';
+
+            var head = document.createElement('div');
+            head.className = 'verifiers-help-head';
+
+            var num = document.createElement('span');
+            num.className = 'verifiers-help-num';
+            num.textContent = (i + 1);
+            head.appendChild(num);
+
+            var name = document.createElement('span');
+            name.className = 'verifiers-help-name';
+            name.textContent = h.display;
+            head.appendChild(name);
+            entry.appendChild(head);
+
+            if (h.opts && h.opts.length) {
+                var opts = document.createElement('div');
+                opts.className = 'verifiers-help-opts';
+                opts.textContent = h.opts.join(' · ');
+                entry.appendChild(opts);
+            }
+
+            var descText = explainCriterion(v.name);
+            if (descText) {
+                var desc = document.createElement('div');
+                desc.className = 'verifiers-help-desc';
+                desc.textContent = descText;
+                entry.appendChild(desc);
+            }
+
+            list.appendChild(entry);
+        }
+    }
+
+    // ============================================================
+    // Mark mode — pencil: visually discard impossible options (NOTES ONLY)
+    // ============================================================
+
+    function toggleMarkMode() {
+        markMode = !markMode;
+        var btn = document.getElementById('verifiers-mark');
+        if (btn) btn.classList.toggle('active', markMode);
+        var grid = document.getElementById('verifiers-grid');
+        if (grid) grid.classList.toggle('marking-mode', markMode);
+    }
+
+    function leaveMarkMode() {
+        if (!markMode) return;
+        markMode = false;
+        var btn = document.getElementById('verifiers-mark');
+        if (btn) btn.classList.remove('active');
+        var grid = document.getElementById('verifiers-grid');
+        if (grid) grid.classList.remove('marking-mode');
+    }
+
+    function openVerifierMark(idx) {
+        if (!level || !level[idx]) return;
+        var v = level[idx];
+        var h = humanizeCriterion(v.name);
+        document.getElementById('verifiers-mark-title').textContent = t('markTitle');
+        var nameEl = document.getElementById('verifiers-mark-name');
+        nameEl.textContent = h.display;
+        document.getElementById('verifiers-mark-hint').textContent = t('markHint');
+
+        var chips = document.getElementById('verifiers-mark-chips');
+        chips.innerHTML = '';
+        if (h.opts && h.opts.length) {
+            for (var i = 0; i < h.opts.length; i++) {
+                (function (opt) {
+                    var chip = document.createElement('button');
+                    chip.type = 'button';
+                    chip.className = 'mark-chip';
+                    chip.textContent = opt;
+                    var marks = verifierMarks[v.name] || (verifierMarks[v.name] = {});
+                    if (marks[opt]) chip.classList.add('marked');
+                    chip.addEventListener('click', function () {
+                        if (marks[opt]) { delete marks[opt]; }
+                        else { marks[opt] = true; }
+                        chip.classList.toggle('marked', !!marks[opt]);
+                        syncMarkIndicator(idx);
+                    });
+                    chips.appendChild(chip);
+                })(h.opts[i]);
+            }
+        } else {
+            chips.textContent = t('markNoOptions');
+        }
+
+        document.getElementById('verifiers-mark-modal').classList.add('open');
+    }
+
+    function closeVerifierMark() {
+        document.getElementById('verifiers-mark-modal').classList.remove('open');
+    }
+
+    // Render the opts line of a verifier on the grid, crossing out marked options
+    function renderMarkedOpts(optsDiv, criterionName, opts) {
+        optsDiv.textContent = '';
+        var marks = verifierMarks[criterionName] || {};
+        for (var i = 0; i < opts.length; i++) {
+            if (i > 0) {
+                var sep = document.createElement('span');
+                sep.className = 'opt-sep';
+                sep.textContent = ' · ';
+                optsDiv.appendChild(sep);
+            }
+            var span = document.createElement('span');
+            span.className = 'opt';
+            if (marks[opts[i]]) span.classList.add('opt-marked');
+            span.textContent = opts[i];
+            optsDiv.appendChild(span);
+        }
+    }
+
+    function syncMarkIndicator(idx) {
+        var el = document.getElementById('verifier-' + idx);
+        if (!el) return;
+        var v = level[idx];
+        var marks = verifierMarks[v.name];
+        var count = 0;
+        if (marks) {
+            for (var k in marks) if (marks[k]) count++;
+        }
+        if (count > 0) el.classList.add('has-marks');
+        else el.classList.remove('has-marks');
+
+        // Re-render the opts line so crossed-out options are visible on the grid
+        var optsDiv = el.querySelector('.verifier-opts');
+        if (optsDiv) {
+            var h = humanizeCriterion(v.name);
+            renderMarkedOpts(optsDiv, v.name, h.opts);
+        }
     }
 
     // ============================================================
@@ -1345,18 +2083,50 @@
                 lightTheme: 'Light',
                 darkTheme: 'Dark',
                 passTurn: 'Pass Turn',
+                reveal: 'Reveal',
                 verifications: 'Verifications: {0}/{1}',
                 history: 'History',
                 noTurnsYet: 'No turns yet. Set a code and verify to start.',
                 noVerifiersUsed: 'No verifiers used.',
                 needFullCode: 'Select a full code (A, B and C) before verifying.',
                 noMoreVerif: 'Verifications used up. Pass the turn.',
+                revealLimit: 'You can only select up to 3 verifiers per turn.',
                 yes: 'YES',
                 no: 'NO',
                 turnFmt: 'Turn {0} — Code {1}',
                 solutionFmt: 'Solution: {0}',
                 levelVerified: 'Level verified: unique solution {0}',
                 levelGenFailed: 'Could not build a {0}-verifier level with this difficulty. New game aborted — try fewer verifiers or a lower difficulty.',
+                solutionTitle: 'Enter your solution',
+                solutionCheck: 'Check',
+                solutionCorrect: 'Correct! The solution is {0}',
+                solutionWrong: 'Wrong! The correct solution was {0}',
+                solutionNewGame: 'New Game',
+                verifiersHelpTitle: 'Verifier guide',
+                verifiersHelp: 'Verifier help',
+                markModeTooltip: 'Mark options (visual notes)',
+                markTitle: 'Mark discarded options',
+                markHint: 'Tap an option to cross it out when you know it cannot be true. Visual notes only — gameplay is not affected.',
+                markNoOptions: 'Nothing to mark for this verifier.',
+                tutorial: 'How to play',
+                tutorialTitle: 'How to play',
+                tutorialGotIt: 'Got it',
+                tutWhatH: 'What is this game?',
+                tutWhatP: 'Turing Machine is a deduction puzzle. A secret 3-digit code (digits 1-5) is hidden, and a set of "verifier" cards give you clues about it. By testing your code against the verifiers and reading their YES/NO answers, you narrow down the options until only one code fits — that is your answer.',
+                tutHowH: 'How to play',
+                tutHowP1: '1. Pick a code: choose a digit (1-5) or "x" for each slot A, B and C. Use "x" when you are not sure yet.',
+                tutHowP2: '2. Test verifiers: pick up to 3 verifiers per turn, then press Reveal to see the YES/NO answers. Green means the clue is true for your code; red means false.',
+                tutHowP3: '3. Deduce and finish: use the answers to discard possibilities, pass the turn to re-enable the verifiers, and when you are sure, press Solution and enter your code. The game ends when a code matches all the clues.',
+                tutUiH: 'What is what in this interface',
+                tutUiItems: [
+                    'Difficulty and Verifiers: choose how hard the puzzle is and how many clue cards are used.',
+                    'New Game: restart with a fresh puzzle. Solution: check your answer, or give up and see the code.',
+                    'Cheat (optional): shows the hidden pattern and extra analysis. Colorblind: swaps red/green for blue/orange.',
+                    'A B C slots: pick the code. Pass Turn: re-enables the verifiers after 3 checks.',
+                    'Verifier cards: each one shows its clue. The blue ? opens the verifier guide; the pencil crosses out options you have discarded.',
+                    'The eye icon on a card means the clue is waiting to be revealed — tap the card to flip it.',
+                    'History (right side): keeps track of every turn and its answers.'
+                ],
                 difficultyOpts: ['Easy', 'Medium', 'Hard'],
                 levelContradiction: 'Generated verifiers contradict each other. New game aborted — try again.'
             }
@@ -1373,18 +2143,50 @@
                 lightTheme: 'Claro',
                 darkTheme: 'Oscuro',
                 passTurn: 'Pasar turno',
+                reveal: 'Revelar',
                 verifications: 'Verificaciones: {0}/{1}',
                 history: 'Historial',
                 noTurnsYet: 'Aún no hay turnos. Elige un código y verifica para empezar.',
                 noVerifiersUsed: 'Sin verificadores usados.',
                 needFullCode: 'Selecciona un código completo (A, B y C) antes de verificar.',
                 noMoreVerif: 'Verificaciones agotadas. Pasa el turno.',
+                revealLimit: 'Solo puedes seleccionar hasta 3 verificadores por turno.',
                 yes: 'SÍ',
                 no: 'NO',
                 turnFmt: 'Turno {0} — Código {1}',
                 solutionFmt: 'Solución: {0}',
                 levelVerified: 'Nivel verificado: solución única {0}',
                 levelGenFailed: 'No se pudo generar un nivel con {0} verificadores en esta dificultad. Partida cancelada; prueba con menos verificadores o menor dificultad.',
+                solutionTitle: 'Ingresa tu solución',
+                solutionCheck: 'Verificar',
+                solutionCorrect: '¡Correcto! La solución es {0}',
+                solutionWrong: '¡Incorrecto! La solución correcta era {0}',
+                solutionNewGame: 'Nueva partida',
+                verifiersHelpTitle: 'Guía de verificadores',
+                verifiersHelp: 'Ayuda de verificadores',
+                markModeTooltip: 'Marcar opciones (notas visuales)',
+                markTitle: 'Marcar opciones descartadas',
+                markHint: 'Tocá una opción para tacharla cuando sepas que no puede ser. Solo notas visuales — el juego no cambia.',
+                markNoOptions: 'Nada para marcar en este verificador.',
+                tutorial: 'Cómo se juega',
+                tutorialTitle: 'Cómo se juega',
+                tutorialGotIt: 'Entendido',
+                tutWhatH: '¿De qué va este juego?',
+                tutWhatP: 'Turing Machine es un juego de deducción. Hay un código secreto de 3 dígitos (del 1 al 5) y un montón de cartas "verificador" que dan pistas sobre él. Probás tu código contra los verificadores, leés sus respuestas SÍ/NO y vas descartando posibilidades hasta que queda un único código posible: esa es tu respuesta.',
+                tutHowH: 'Cómo se juega',
+                tutHowP1: '1. Elegí un código: marcá un dígito (1-5) o "x" en cada casilla A, B y C. Usá "x" cuando todavía no estés seguro.',
+                tutHowP2: '2. Probá verificadores: elegí hasta 3 verificadores por turno y tocá Revelar para ver las respuestas SÍ/NO. Verde = la pista es verdadera para tu código; rojo = falsa.',
+                tutHowP3: '3. Deducí y terminá: usá las respuestas para descartar posibilidades, pasá el turno para reactivar los verificadores y, cuando estés seguro, tocá Solución e ingresá tu código. El juego termina cuando un código cumple todas las pistas.',
+                tutUiH: 'Qué es cada cosa en esta interfaz',
+                tutUiItems: [
+                    'Dificultad y Verificadores: definen qué tan difícil es la partida y cuántas cartas de pista se usan.',
+                    'Nueva partida: reinicia con un desafío nuevo. Solución: comprobá tu respuesta o rendite y mirá el código.',
+                    'Trampa (opcional): muestra el patrón oculto y un análisis extra. Daltónico: cambia rojo/verde por azul/naranja.',
+                    'Casillas A B C: elegís el código. Pasar turno: reactiva los verificadores después de 3 comprobaciones.',
+                    'Cartas verificador: cada una muestra su pista. El ? azul abre la guía de verificadores; el lápiz permite tachar opciones que descartaste.',
+                    'El ícono de ojo sobre una carta significa que la pista está esperando revelarse: tocá la carta para darla vuelta.',
+                    'Historial (a la derecha): registra cada turno y sus respuestas.'
+                ],
                 difficultyOpts: ['Fácil', 'Media', 'Difícil'],
                 levelContradiction: 'Los verificadores generados se contradicen. Partida cancelada; intenta de nuevo.'
             },
@@ -1451,18 +2253,50 @@
                 lightTheme: 'Clair',
                 darkTheme: 'Sombre',
                 passTurn: 'Passer le tour',
+                reveal: 'Révéler',
                 verifications: 'Vérifications : {0}/{1}',
                 history: 'Historique',
                 noTurnsYet: 'Aucun tour pour l\'instant. Choisissez un code et vérifiez pour commencer.',
                 noVerifiersUsed: 'Aucun vérificateur utilisé.',
                 needFullCode: 'Sélectionnez un code complet (A, B et C) avant de vérifier.',
                 noMoreVerif: 'Vérifications épuisées. Passez le tour.',
+                revealLimit: 'Vous pouvez sélectionner jusqu\'à 3 vérificateurs par tour.',
                 yes: 'OUI',
                 no: 'NON',
                 turnFmt: 'Tour {0} — Code {1}',
                 solutionFmt: 'Solution : {0}',
                 levelVerified: 'Niveau vérifié : solution unique {0}',
                 levelGenFailed: 'Impossible de créer un niveau à {0} vérificateurs avec cette difficulté. Partie annulée — essayez moins de vérificateurs ou une difficulté plus faible.',
+                solutionTitle: 'Entrez votre solution',
+                solutionCheck: 'Vérifier',
+                solutionCorrect: 'Correct ! La solution est {0}',
+                solutionWrong: 'Faux ! La solution correcte était {0}',
+                solutionNewGame: 'Nouvelle partie',
+                verifiersHelpTitle: 'Guide des vérificateurs',
+                verifiersHelp: 'Aide des vérificateurs',
+                markModeTooltip: 'Marquer les options (notes visuelles)',
+                markTitle: 'Marquer les options éliminées',
+                markHint: 'Touchez une option pour la barrer quand vous savez qu\'elle ne peut pas être vraie. Simples notes visuelles — le jeu n\'est pas affecté.',
+                markNoOptions: 'Rien à marquer pour ce vérificateur.',
+                tutorial: 'Comment jouer',
+                tutorialTitle: 'Comment jouer',
+                tutorialGotIt: 'Compris',
+                tutWhatH: 'De quoi s\'agit-il ?',
+                tutWhatP: 'Turing Machine est un jeu de déduction. Un code secret de 3 chiffres (de 1 à 5) est caché, et des cartes « vérificateur » vous donnent des indices. Testez votre code contre les vérificateurs, lisez leurs réponses OUI/NON et éliminez les possibilités jusqu\'à ce qu\'un seul code reste : c\'est votre réponse.',
+                tutHowH: 'Comment jouer',
+                tutHowP1: '1. Choisissez un code : indiquez un chiffre (1 à 5) ou « x » dans chaque emplacement A, B et C. Utilisez « x » quand vous n\'êtes pas encore sûr.',
+                tutHowP2: '2. Testez les vérificateurs : choisissez jusqu\'à 3 vérificateurs par tour, puis appuyez sur Révéler pour voir les réponses OUI/NON. Vert = l\'indice est vrai pour votre code ; rouge = faux.',
+                tutHowP3: '3. Déduisez et terminez : utilisez les réponses pour éliminer des possibilités, passez le tour pour réactiver les vérificateurs et, quand vous êtes sûr, appuyez sur Solution et saisissez votre code. La partie se termine quand un code respecte tous les indices.',
+                tutUiH: 'À quoi sert chaque élément',
+                tutUiItems: [
+                    'Difficulté et Vérificateurs : choisissez la difficulté et le nombre de cartes d\'indices.',
+                    'Nouvelle partie : recommence avec un nouveau défi. Solution : vérifiez votre réponse ou abandonnez et voyez le code.',
+                    'Triche (optionnel) : montre le motif caché et une analyse supplémentaire. Daltonien : remplace rouge/vert par bleu/orange.',
+                    'Emplacements A B C : choisissez le code. Passer le tour : réactive les vérificateurs après 3 vérifications.',
+                    'Cartes vérificateur : chacune affiche son indice. Le ? bleu ouvre le guide des vérificateurs ; le crayon sert à rayer les options éliminées.',
+                    'L\'icône œil sur une carte indique que l\'indice attend d\'être révélé : touchez la carte pour la retourner.',
+                    'Historique (à droite) : garde la trace de chaque tour et de ses réponses.'
+                ],
                 difficultyOpts: ['Facile', 'Moyenne', 'Difficile'],
                 levelContradiction: 'Les vérificateurs générés se contredisent. Partie annulée — veuillez réessayer.'
             },
@@ -1529,18 +2363,50 @@
                 lightTheme: 'Hell',
                 darkTheme: 'Dunkel',
                 passTurn: 'Zug beenden',
+                reveal: 'Aufdecken',
                 verifications: 'Prüfungen: {0}/{1}',
                 history: 'Verlauf',
                 noTurnsYet: 'Noch keine Züge. Wähle einen Code und prüfe, um zu starten.',
                 noVerifiersUsed: 'Keine Prüfer verwendet.',
                 needFullCode: 'Wähle zuerst einen vollständigen Code (A, B und C).',
                 noMoreVerif: 'Prüfungen aufgebraucht. Beende den Zug.',
+                revealLimit: 'Du kannst pro Zug nur bis zu 3 Prüfer auswählen.',
                 yes: 'JA',
                 no: 'NEIN',
                 turnFmt: 'Zug {0} — Code {1}',
                 solutionFmt: 'Lösung: {0}',
                 levelVerified: 'Niveau geprüft: eindeutige Lösung {0}',
                 levelGenFailed: 'Konnte kein {0}-Prüfer-Niveau mit dieser Schwierigkeit erstellen. Spiel abgebrochen — versuche weniger Prüfer oder eine niedrigere Schwierigkeit.',
+                solutionTitle: 'Lösung eingeben',
+                solutionCheck: 'Prüfen',
+                solutionCorrect: 'Richtig! Die Lösung ist {0}',
+                solutionWrong: 'Falsch! Die richtige Lösung war {0}',
+                solutionNewGame: 'Neues Spiel',
+                verifiersHelpTitle: 'Prüfer-Anleitung',
+                verifiersHelp: 'Prüfer-Hilfe',
+                markModeTooltip: 'Optionen markieren (visuelle Notizen)',
+                markTitle: 'Verworfene Optionen markieren',
+                markHint: 'Tippe eine Option an, um sie durchzustreichen, wenn du weißt, dass sie nicht zutreffen kann. Nur visuelle Notizen — das Spiel bleibt unverändert.',
+                markNoOptions: 'Bei diesem Prüfer gibt es nichts zu markieren.',
+                tutorial: 'Anleitung',
+                tutorialTitle: 'So spielst du',
+                tutorialGotIt: 'Verstanden',
+                tutWhatH: 'Worum geht es?',
+                tutWhatP: 'Turing Machine ist ein Deduktionsspiel. Ein geheimer 3-stelliger Code (Ziffern 1-5) ist versteckt, und „Verifier"-Karten geben Hinweise darauf. Teste deinen Code an den Verifiern, lies ihre JA/NEIN-Antworten und schließe Möglichkeiten aus, bis nur noch ein Code übrig ist — das ist deine Antwort.',
+                tutHowH: 'So wird gespielt',
+                tutHowP1: '1. Code wählen: Wähle in jedem Feld A, B und C eine Ziffer (1-5) oder „x". Nutze „x", wenn du dir noch nicht sicher bist.',
+                tutHowP2: '2. Verifier testen: Wähle bis zu 3 Verifier pro Zug und drücke Aufdecken, um die JA/NEIN-Antworten zu sehen. Grün = der Hinweis stimmt für deinen Code; Rot = er stimmt nicht.',
+                tutHowP3: '3. Kombinieren und lösen: Nutze die Antworten, um Möglichkeiten auszuschließen, gib den Zug ab, um die Verifier zu reaktivieren, und drücke Lösung, sobald du sicher bist, und gib deinen Code ein. Das Spiel endet, wenn ein Code alle Hinweise erfüllt.',
+                tutUiH: 'Was ist was in dieser Oberfläche',
+                tutUiItems: [
+                    'Schwierigkeit und Verifier: legen fest, wie schwer das Rätsel ist und wie viele Hinweiskarten benutzt werden.',
+                    'Neues Spiel: startet ein neues Rätsel. Lösung: prüfe deine Antwort oder gib auf und sieh dir den Code an.',
+                    'Trick (optional): zeigt das versteckte Muster und eine Zusatzanalyse. Farbenblind: ersetzt Rot/Grün durch Blau/Orange.',
+                    'Fächer A B C: hier wählst du den Code. Zug beenden: reaktiviert die Verifier nach 3 Prüfungen.',
+                    'Verifier-Karten: jede zeigt ihren Hinweis. Das blaue ? öffnet den Verifier-Guide; der Stift streicht ausgeschlossene Optionen durch.',
+                    'Das Augensymbol auf einer Karte bedeutet, dass der Hinweis auf Aufdeckung wartet — tippe die Karte, um sie umzudrehen.',
+                    'Verlauf (rechts): protokolliert jeden Zug und seine Antworten.'
+                ],
                 difficultyOpts: ['Leicht', 'Mittel', 'Schwer'],
                 levelContradiction: 'Die generierten Prüfer widersprechen sich. Spiel abgebrochen — bitte erneut versuchen.'
             },
@@ -1607,18 +2473,50 @@
                 lightTheme: 'Светлая',
                 darkTheme: 'Тёмная',
                 passTurn: 'Завершить ход',
+                reveal: 'Раскрыть',
                 verifications: 'Проверки: {0}/{1}',
                 history: 'История',
                 noTurnsYet: 'Ходов пока нет. Выберите код и проверьте, чтобы начать.',
                 noVerifiersUsed: 'Проверки не использовались.',
                 needFullCode: 'Выберите полный код (A, B и C) перед проверкой.',
                 noMoreVerif: 'Проверки закончились. Завершите ход.',
+                revealLimit: 'Можно выбрать не более 3 проверяющих за ход.',
                 yes: 'ДА',
                 no: 'НЕТ',
                 turnFmt: 'Ход {0} — Код {1}',
                 solutionFmt: 'Решение: {0}',
                 levelVerified: 'Уровень проверен: уникальное решение {0}',
                 levelGenFailed: 'Не удалось создать уровень с {0} проверками на этой сложности. Игра отменена — попробуйте меньше проверок или проще сложность.',
+                solutionTitle: 'Введите решение',
+                solutionCheck: 'Проверить',
+                solutionCorrect: 'Правильно! Решение: {0}',
+                solutionWrong: 'Неправильно! Правильное решение: {0}',
+                solutionNewGame: 'Новая игра',
+                verifiersHelpTitle: 'Справка по проверкам',
+                verifiersHelp: 'Помощь по проверкам',
+                markModeTooltip: 'Отметить варианты (визуальные заметки)',
+                markTitle: 'Отметить отброшенные варианты',
+                markHint: 'Нажмите на вариант, чтобы зачеркнуть его, если вы знаете, что он невозможен. Только визуальные заметки — игра не меняется.',
+                markNoOptions: 'Этому проверяющему нечего отмечать.',
+                tutorial: 'Как играть',
+                tutorialTitle: 'Как играть',
+                tutorialGotIt: 'Понятно',
+                tutWhatH: 'Что это за игра?',
+                tutWhatP: '«Машина Тьюринга» — это игра на дедукцию. Скрыт секретный код из 3 цифр (от 1 до 5), а карточки-«верификаторы» дают о нём подсказки. Проверяй свой код на верификаторах, читай ответы ДА/НЕТ и отбрасывай варианты, пока не останется единственный код — это и есть ответ.',
+                tutHowH: 'Как играть',
+                tutHowP1: '1. Выбери код: поставь цифру (1–5) или «x» в каждом слоте A, B и C. Используй «x», если пока не уверен.',
+                tutHowP2: '2. Проверяй верификаторов: выбирай до 3 верификаторов за ход и нажми «Раскрыть», чтобы увидеть ответы ДА/НЕТ. Зелёный = подсказка верна для твоего кода; красный = неверна.',
+                tutHowP3: '3. Рассуждай и завершай: используй ответы, чтобы исключать варианты, передай ход, чтобы снова активировать верификаторов, а когда уверен — нажми «Решение» и введи свой код. Игра заканчивается, когда код соответствует всем подсказкам.',
+                tutUiH: 'Что есть что в этом интерфейсе',
+                tutUiItems: [
+                    'Сложность и Верификаторы: задают сложность головоломки и количество карточек-подсказок.',
+                    'Новая игра: начинает новую головоломку. Решение: проверь свой ответ или сдайся и посмотри код.',
+                    'Трик (необязательно): показывает скрытый паттерн и дополнительный анализ. Дальтонизм: меняет красный/зелёный на синий/оранжевый.',
+                    'Слоты A B C: здесь выбираешь код. Передать ход: снова активирует верификаторов после 3 проверок.',
+                    'Карточки верификаторов: на каждой — своя подсказка. Синий ? открывает гид по верификаторам; карандаш зачёркивает исключённые варианты.',
+                    'Глаз на карточке означает, что подсказка ждёт раскрытия — нажми на карточку, чтобы перевернуть её.',
+                    'История (справа): записывает каждый ход и его ответы.'
+                ],
                 difficultyOpts: ['Лёгкая', 'Средняя', 'Сложная'],
                 levelContradiction: 'Сгенерированные проверки противоречат друг другу. Игра отменена — попробуйте снова.'
             },
@@ -1702,6 +2600,18 @@
         setText('colorblind-label', set.colorblind);
         setText('history-title', set.history);
 
+        var helpBtn = document.getElementById('verifiers-help');
+        if (helpBtn) helpBtn.title = set.verifiersHelp;
+
+        var markBtn = document.getElementById('verifiers-mark');
+        if (markBtn) markBtn.title = set.markModeTooltip;
+
+        var tutBtn = document.getElementById('tutorial');
+        if (tutBtn) {
+            tutBtn.title = set.tutorial;
+            tutBtn.setAttribute('aria-label', set.tutorial);
+        }
+
         var langEl = document.getElementById('language');
         if (langEl) langEl.value = currentLang;
 
@@ -1717,6 +2627,20 @@
         fillStaticTexts();
         if (level) {
             buildVerifiersGrid();
+            // Mark-mode red dots survive a language re-render
+            for (var i = 0; i < level.length; i++) {
+                syncMarkIndicator(i);
+            }
+            // Pending-reveal selection survives a language re-render
+            for (var j = 0; j < level.length; j++) {
+                var rel = document.getElementById('verifier-' + j);
+                if (!rel) continue;
+                if (selectedVerifiers[j]) {
+                    rel.classList.add('pending-reveal');
+                } else {
+                    rel.classList.remove('pending-reveal');
+                }
+            }
             updateUI(false);
             renderHistory();
         }
@@ -1774,7 +2698,44 @@
 
         document.getElementById('newgame').addEventListener('click', newGame);
         document.getElementById('solution').addEventListener('click', showSolution);
-        document.getElementById('pass-turn').addEventListener('click', passTurn);
+        document.getElementById('solution-modal-close').addEventListener('click', closeSolutionModalAsGiveUp);
+        document.getElementById('solution-check').addEventListener('click', function () {
+            if (gameOver) return;
+            if (modalGuess === null || modalGuess[0] === 'x' || modalGuess[1] === 'x' || modalGuess[2] === 'x') {
+                showToast(t('needFullCode'));
+                return;
+            }
+            checkGuessSolution(modalGuess.slice());
+        });
+        document.getElementById('solution-newgame').addEventListener('click', function () {
+            closeSolutionModal();
+            newGame();
+        });
+        document.getElementById('pass-turn').addEventListener('click', function () {
+            var cheatModeNow = document.getElementById('cheat').checked;
+            var pending = Object.keys(selectedVerifiers).length > 0;
+            if (!cheatModeNow && !revealedThisTurn && pending && !turnBlocked) {
+                doReveal();
+            } else {
+                passTurn();
+            }
+        });
+        document.getElementById('verifiers-help').addEventListener('click', openVerifiersHelp);
+        document.getElementById('verifiers-help-close').addEventListener('click', closeVerifiersHelp);
+        document.getElementById('verifiers-help-modal').addEventListener('click', function (e) {
+            if (e.target === this) closeVerifiersHelp();
+        });
+        document.getElementById('tutorial').addEventListener('click', openTutorial);
+        document.getElementById('tutorial-close').addEventListener('click', closeTutorial);
+        document.getElementById('tutorial-gotit').addEventListener('click', closeTutorial);
+        document.getElementById('tutorial-modal').addEventListener('click', function (e) {
+            if (e.target === this) closeTutorial();
+        });
+        document.getElementById('verifiers-mark').addEventListener('click', toggleMarkMode);
+        document.getElementById('verifiers-mark-close').addEventListener('click', closeVerifierMark);
+        document.getElementById('verifiers-mark-modal').addEventListener('click', function (e) {
+            if (e.target === this) closeVerifierMark();
+        });
         document.getElementById('cheat').addEventListener('change', function () {
             updateUI(false);
         });
@@ -1810,3 +2771,4 @@
     }
 
 })();
+

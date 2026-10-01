@@ -94,6 +94,27 @@ select { color: #e0e0e0; background-color: #16213e; border-color: #444; }
 .history-chip.ok { background: rgba(39, 174, 96, 0.18); color: #27ae60; border-color: #27ae60; }
 .history-chip.no { background: rgba(231, 76, 60, 0.18); color: #e74c3c; border-color: #e74c3c; }
 .toast { background-color: #0f3460; color: #fff; }
+/* Offline edition additions */
+.modal-card { background-color: #16213e; border-color: #444; }
+.modal-close { color: #aaa; }
+.modal-title { color: #e0e0e0; }
+.modal-result { background-color: #0f1626; border-color: #333; }
+.modal-result.win { background-color: rgba(39, 174, 96, 0.15); border-color: #27ae60; color: #27ae60; }
+.modal-result.lose { background-color: rgba(231, 76, 60, 0.15); border-color: #e74c3c; color: #e74c3c; }
+.verifiers-help-btn { background-color: #16213e; border-color: #444; color: #aaa; }
+.verifiers-help-entry { background-color: #0f1626; border-color: #333; }
+.verifiers-help-name { color: #e0e0e0; }
+.verifiers-help-opts { color: #888; }
+.verifiers-help-desc { color: #aaa; }
+.verifiers-help-num { background: #0f3460; border-color: #1a5276; color: #fff; }
+.verifier-opts .opt-marked { color: #888; }
+.mark-chip { background-color: #0f1626; border-color: #444; color: #e0e0e0; }
+.mark-verifier-name { color: #e0e0e0; }
+.mark-hint { color: #888; }
+.tutorial-btn { background-color: #16213e; border-color: #444; color: #aaa; }
+.tutorial-section h3 { color: #e0e0e0; border-left: 3px solid #0f3460; padding-left: 10px; }
+.tutorial-section p, .tutorial-list li { color: #888; }
+.tutorial-list li::before { color: #0f3460; }
 
 * {
     margin: 0;
@@ -698,16 +719,558 @@ select:focus {
     transform: translateX(-50%) translateY(0);
 }
 
+.level-status {
+    margin: 0 4px 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(128, 128, 128, 0.15);
+    color: #2ecc71;
+}
+
+.level-status.err {
+    color: #e74c3c;
+}
+
+/* Solution Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+    padding: 20px;
+}
+
+.modal-overlay.open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    padding: 18px 22px 16px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    transform: translateY(12px) scale(0.98);
+    transition: transform 0.25s ease;
+    position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-overlay.open .modal-card {
+    transform: translateY(0) scale(1);
+}
+
+.modal-close {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 3px;
+    z-index: 2;
+    transition: color 0.15s;
+}
+
+.modal-close:hover {
+    color: var(--text);
+}
+
+.modal-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 14px;
+    text-align: center;
+}
+
+.modal-slots {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.modal-result {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    border: 1px solid var(--line);
+    background: var(--bg-panel2);
+    min-height: 48px;
+}
+
+.modal-result.win {
+    background: rgba(39, 174, 96, 0.15);
+    border-color: var(--green);
+    color: var(--green);
+    box-shadow: 0 0 20px var(--green-glow);
+}
+
+.modal-result.lose {
+    background: rgba(231, 76, 60, 0.15);
+    border-color: var(--red);
+    color: var(--red);
+    box-shadow: 0 0 20px var(--red-glow);
+}
+
+.verifiers-area {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 28px;
+}
+.verifiers-area .verifiers-grid {
+    margin-bottom: 0;
+}
+.verifiers-help-btn {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    margin-top: 4px;
+    border-radius: 50%;
+    border: 2px solid var(--line-strong);
+    background: var(--bg-panel);
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.verifiers-help-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+}
+.verifiers-help-card {
+    max-width: 560px;
+}
+
+/* Tutorial (How to play) */
+.tutorial-btn {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 2px solid var(--line-strong);
+    background: var(--bg-panel);
+    color: var(--text-muted);
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+.tutorial-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+}
+.tutorial-card {
+    max-width: 520px;
+    padding: 14px 18px 12px;
+    display: flex;
+    flex-direction: column;
+}
+.tutorial-card .modal-title {
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+    text-align: center;
+    flex-shrink: 0;
+}
+.tutorial-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+    padding-bottom: 4px;
+}
+.tutorial-section + .tutorial-section {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+}
+.tutorial-section h3 {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 10px;
+    padding-left: 10px;
+    border-left: 3px solid var(--accent);
+}
+.tutorial-section p {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin-bottom: 6px;
+    padding-left: 2px;
+}
+.tutorial-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.tutorial-list li {
+    font-size: 0.73rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+    padding: 3px 0 3px 14px;
+    position: relative;
+}
+.tutorial-list li::before {
+    content: '\2022';
+    position: absolute;
+    left: 2px;
+    color: var(--accent);
+    font-size: 0.7rem;
+}
+.tutorial-card .modal-actions {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+    flex-shrink: 0;
+}
+.tutorial-card .modal-actions .btn {
+    font-size: 0.72rem;
+    padding: 5px 20px;
+}
+.solution-card {
+    max-width: 460px;
+    padding: 14px 18px 12px;
+    display: flex;
+    flex-direction: column;
+}
+.solution-card .modal-title {
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+    text-align: center;
+    flex-shrink: 0;
+}
+.solution-card #solution-slots {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 2px -6px 0;
+    padding: 4px 6px;
+    justify-content: center;
+    align-content: flex-start;
+}
+.solution-card .solution-check-actions {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+    flex-shrink: 0;
+}
+.solution-card .modal-actions .btn {
+    font-size: 0.72rem;
+    padding: 5px 20px;
+}
+.solution-card .modal-result {
+    flex-shrink: 0;
+}
+.solution-card #solution-newgame {
+    display: none;
+}
+.verifiers-help-list {
+    max-height: 60vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-right: 4px;
+}
+.verifiers-help-entry {
+    background: var(--bg-panel2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+.verifiers-help-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+.verifiers-help-num {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--accent-hover);
+}
+.verifiers-help-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text);
+}
+.verifiers-help-opts {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+}
+.verifier-opts .opt-marked {
+    text-decoration: line-through;
+    text-decoration-color: #e74c3c;
+    text-decoration-thickness: 2px;
+    color: var(--text-dim);
+    opacity: 0.75;
+    background: rgba(231, 76, 60, 0.12);
+    border-radius: 2px;
+    padding: 0 2px;
+}
+.verifiers-help-desc {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+}
+
+/* Mark mode — pencil toggle for marking discarded options */
+.verifiers-mark-btn.active {
+    border-color: #e74c3c;
+    color: #e74c3c;
+    background: rgba(231, 76, 60, 0.1);
+}
+@keyframes verifier-sway {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-1.2deg); }
+    75% { transform: rotate(1.2deg); }
+}
+.marking-mode .verifier-rect:not(.locked) {
+    animation: verifier-sway 1.6s ease-in-out infinite;
+    cursor: pointer;
+}
+.marking-mode .verifier-rect:not(.locked):hover {
+    box-shadow: 0 0 0 2px #e74c3c;
+}
+.mark-indicator {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #e74c3c;
+    display: none;
+}
+.verifier-rect.has-marks .mark-indicator {
+    display: block;
+}
+.verifiers-mark-card {
+    max-width: 480px;
+}
+.mark-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 2px solid var(--line-strong);
+    background: var(--bg-panel2);
+    color: var(--text);
+    font-size: 1.05rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    -webkit-user-select: none;
+    user-select: none;
+}
+.mark-chip:hover {
+    border-color: var(--accent);
+    background: var(--bg-panel);
+}
+.mark-chip.marked {
+    border-color: #e74c3c;
+    background: rgba(231, 76, 60, 0.08);
+    text-decoration: line-through;
+    text-decoration-color: #e74c3c;
+    text-decoration-thickness: 3px;
+    color: var(--text-dim);
+}
+.mark-chips-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 14px;
+}
+.mark-verifier-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 4px;
+}
+.mark-hint {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 12px;
+}
+
+/* Verifier eye: shown over the pending-reveal card, leaving the card visible behind */
+.verifier-rect.pending-reveal {
+    border-color: #ffd700;
+    box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.45);
+}
+.verifier-rect.pending-reveal .verifier-eye {
+    display: flex;
+}
+.verifier-eye {
+    display: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    border-radius: 8px;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 50%, rgba(255, 215, 0, 0.14) 0%, rgba(255, 215, 0, 0.05) 55%, transparent 75%);
+    pointer-events: none;
+    z-index: 2;
+    animation: eye-pop 0.35s ease;
+}
+.verifier-eye::before {
+    content: '';
+    position: absolute;
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    border: 2px dashed rgba(255, 215, 0, 0.65);
+    animation: eye-ring 8s linear infinite;
+}
+.verifier-eye-icon {
+    font-size: 26px;
+    line-height: 1;
+    filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.9));
+    animation: eye-float 2.6s ease-in-out infinite;
+    position: relative;
+    z-index: 1;
+}
+@keyframes eye-pop {
+    from { transform: scale(0.6); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+@keyframes eye-ring {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+@keyframes eye-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+}
+
+/* Card flip: verifier turns over to reveal the YES/NO result */
+.verifier-rect.flipping {
+    animation: card-flip 0.5s ease-in-out;
+    z-index: 3;
+}
+@keyframes card-flip {
+    0% { transform: perspective(600px) rotateY(0deg); }
+    45% { transform: perspective(600px) rotateY(90deg); }
+    55% { transform: perspective(600px) rotateY(-90deg); }
+    100% { transform: perspective(600px) rotateY(0deg); }
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.modal-actions .btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.modal-slot-btn {
+    min-width: 36px;
+}
+
+#solution-newgame {
+    display: none;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     header {
+        -webkit-box-orient: vertical;
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
+    }
+
+    .controls {
+        -webkit-box-orient: vertical;
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .controls .control-group {
+        justify-content: space-between;
+        flex-wrap: wrap;
+    }
+
+    .controls .control-group select {
+        flex: 1;
+        max-width: 60%;
+        min-width: 0;
+    }
+
+    .controls .btn,
+    .controls .cheat-label {
+        width: 100%;
+    }
+
+    #tutorial {
+        align-self: center;
+        margin-top: 4px;
     }
 
     .code-selector {
         flex-direction: column;
         align-items: center;
+    }
+
+    .verifiers-area {
+        flex-wrap: wrap;
+        justify-content: center;
     }
 
     .verifiers-grid {
@@ -719,6 +1282,10 @@ select:focus {
         max-width: 140px;
     }
 
+    .turn-bar {
+        flex-wrap: wrap;
+    }
+
     .game-layout {
         flex-direction: column;
     }
@@ -726,20 +1293,37 @@ select:focus {
     .game-sidebar {
         width: 100%;
     }
-}
 
+    .modal-card {
+        padding: 14px 14px 12px;
+    }
+
+    .tutorial-card .modal-title,
+    .solution-card .modal-title {
+        font-size: 0.84rem;
+    }
+
+    .solution-card .modal-slots {
+        flex-direction: column;
+        align-items: center;
+    }
+}
 /* ============================================================
    Compatibility layer — legacy browsers (Android 4.4 / old WebKit)
    - Flexbox engine fallback: -webkit-box (2009) -> -webkit-flex (2012) -> flex
    - Prefixed transforms / transitions
    - Flex gap emulation (gap needs Chrome >= 84)
+   - Prefixed animations
    Modern browsers simply override these with later canonical rules.
    ============================================================ */
 
 /* 1) Flexbox engine fallback */
 header, .controls, .control-group, .code-selector, .slot,
-.slot-buttons, .slot-label, .verifier-num, .game-layout,
-.turn-bar, .history-list, .history-chips, .verifiers-area {
+.slot-buttons, .slot-label, .verifier-num, .verifiers-help-num,
+.game-layout, .turn-bar, .history-list, .history-chips,
+.verifiers-area, .verifiers-help-head, .modal-overlay,
+.modal-card, .modal-actions, .modal-slots, .mark-chip,
+.tutorial-btn, .verifiers-help-btn {
     display: -webkit-box;
     display: -webkit-flex;
     display: -ms-flexbox;
@@ -747,16 +1331,33 @@ header, .controls, .control-group, .code-selector, .slot,
 }
 
 /* 2009 box orientation: horizontal by default, column for stacks */
-.slot, .history-list, .game-layout, .turn-bar {
+.slot, .history-list, .modal-card, .game-layout, .turn-bar {
     -webkit-box-orient: vertical;
 }
 .controls, .code-selector, .slot-buttons, .verifiers-area,
-.history-chips {
+.history-chips, .modal-actions, .modal-slots, .verifiers-help-head {
     -webkit-box-orient: horizontal;
 }
 
 /* 2009 box centering */
-.slot, .slot-label, .verifier-num, .control-group {
+.slot, .slot-label, .verifier-num, .verifiers-help-num,
+.modal-overlay, .mark-chip, .modal-actions,
+.modal-slots, .verifiers-help-head, .tutorial-btn {
+    -webkit-box-align: center;
+    -webkit-box-pack: center;
+}
+.control-group {
+    -webkit-box-align: center;
+}
+
+/* Verifier eye stays hidden except in pending-reveal state.
+   Scoped fallback: only the pending-reveal rule may make it visible,
+   never a generic container override. */
+.verifier-rect.pending-reveal .verifier-eye {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
+    display: flex;
     -webkit-box-align: center;
     -webkit-box-pack: center;
 }
@@ -771,12 +1372,18 @@ header, .controls, .control-group, .code-selector, .slot,
 .toast.show {
     -webkit-transform: translateX(-50%) translateY(0);
 }
+.modal-card {
+    -webkit-transform: translateY(12px) scale(0.98);
+}
+.modal-overlay.open .modal-card {
+    -webkit-transform: translateY(0) scale(1);
+}
 
 /* 3) Prefixed transitions */
 body {
     -webkit-transition: background 0.2s ease, color 0.2s ease;
 }
-.btn, .btn-secondary, .slot-btn, .verifier-rect {
+.btn, .btn-secondary, .slot-btn, .verifiers-help-btn, .tutorial-btn, .mark-chip {
     -webkit-transition: all 0.15s ease;
 }
 .verifier-rect {
@@ -787,6 +1394,15 @@ body {
 }
 .toast {
     -webkit-transition: all 0.25s ease;
+}
+.modal-overlay {
+    -webkit-transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+.modal-card {
+    -webkit-transition: transform 0.25s ease;
+}
+.modal-close {
+    -webkit-transition: color 0.15s;
 }
 
 /* 4) Flex gap emulation: browsers without gap (Chrome < 84).
@@ -801,4 +1417,50 @@ body {
     .history-list .history-entry { margin: 5px 0; }
     .history-chips .history-chip { margin: 0 3px; }
     .verifiers-area .verifiers-grid { margin: 0 5px; }
+    .verifiers-help-btn { margin: 4px 5px 0; }
+    .verifiers-help-head > * { margin: 0 5px; }
+    .modal-slots .slot { margin: 0 8px; }
+    .modal-actions .btn { margin: 0 5px; }
+    .mark-chips-row .mark-chip { margin: 5px; }
 }
+
+/* 5) Prefixed animations + keyframes */
+.verifier-rect.flipping {
+    -webkit-animation: card-flip 0.5s ease-in-out;
+}
+.marking-mode .verifier-rect:not(.locked) {
+    -webkit-animation: verifier-sway 1.6s ease-in-out infinite;
+}
+.verifier-eye {
+    -webkit-animation: eye-pop 0.35s ease;
+}
+.verifier-eye::before {
+    -webkit-animation: eye-ring 8s linear infinite;
+}
+.verifier-eye-icon {
+    -webkit-animation: eye-float 2.6s ease-in-out infinite;
+}
+@-webkit-keyframes verifier-sway {
+    0%, 100% { -webkit-transform: rotate(0deg); }
+    25% { -webkit-transform: rotate(-1.2deg); }
+    75% { -webkit-transform: rotate(1.2deg); }
+}
+@-webkit-keyframes eye-pop {
+    from { -webkit-transform: scale(0.6); opacity: 0; }
+    to { -webkit-transform: scale(1); opacity: 1; }
+}
+@-webkit-keyframes eye-ring {
+    from { -webkit-transform: rotate(0deg); }
+    to { -webkit-transform: rotate(360deg); }
+}
+@-webkit-keyframes eye-float {
+    0%, 100% { -webkit-transform: translateY(0); }
+    50% { -webkit-transform: translateY(-3px); }
+}
+@-webkit-keyframes card-flip {
+    0% { -webkit-transform: rotateY(0deg); }
+    45% { -webkit-transform: rotateY(90deg); }
+    55% { -webkit-transform: rotateY(-90deg); }
+    100% { -webkit-transform: rotateY(0deg); }
+}
+

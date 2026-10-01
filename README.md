@@ -72,7 +72,7 @@ Runs entirely in the browser. No server, no account, no network calls.
 | Verifier guide | In-app help view explaining the verifier cards |
 | Themes | Dark (default), light, and a colorblind-friendly mode |
 | Accessibility | ARIA labels on interactive controls |
-| Dependencies | None. No build step. No jQuery. |
+| Dependencies | None. No runtime dependencies, no jQuery. Nothing to install to play. |
 
 The colorblind mode is not just a palette swap. It replaces red/green with blue/orange **and** puts explicit glyphs on the verifier cards, so the state of every card is readable without relying on colour at all.
 
@@ -85,14 +85,15 @@ There is also a legacy CSS compatibility layer for browsers without CSS custom p
 Play it live: <https://ironlord02.github.io/unofficial-turing-machine/>
 
 ```
-index.html        the landing page (served at /)
-src/index.html    the split build's markup
-css/style.css     the split build's styles
-js/game.js        the split build's game logic
-tm-offline.html   the single-file build
+index.html                the landing page (served at /)
+src/index.html            the split build's markup
+css/style.css             the split build's styles
+js/game.js                the split build's game logic
+tm-offline.html           the single-file build
+tools/build-single-file.js  regenerates the single-file build from the split sources
 ```
 
-Two builds of the same game ship here. They are **not currently in sync** — see the warning below.
+Two builds of the same game ship here. **They are in sync** — `tm-offline.html` is generated from the split sources by `tools/build-single-file.js`, so the two cannot silently drift.
 
 ### Single-file portable build (recommended for playing)
 
@@ -100,7 +101,7 @@ Two builds of the same game ship here. They are **not currently in sync** — se
 tm-offline.html
 ```
 
-About 200 KB, fully self-contained. CSS and JS are inlined, there are zero external requests, and it includes the tutorial, the verifier guide, and the ARIA labels.
+About 208 KB, fully self-contained. CSS and JS are inlined, there are zero external requests, and it includes the tutorial, the verifier guide, the solution and verifier-marking modals, and the ARIA labels.
 
 **Double-click it.** Open it from disk, on a USB stick, on a shared computer, anywhere. No internet connection, no web server, no install step. Nothing to break, nothing to configure.
 
@@ -114,9 +115,11 @@ js/game.js
 
 | File | Size | Role |
 | --- | --- | --- |
-| `src/index.html` | 5.4 KB | Markup |
-| `css/style.css` | 17.7 KB | Styles |
-| `js/game.js` | 96 KB | All game logic, level generation, and i18n strings |
+| `src/index.html` | 10.8 KB | Markup |
+| `css/style.css` | 33.7 KB | Styles |
+| `js/game.js` | 166.6 KB | All game logic, level generation, and i18n strings |
+
+The split build is the **source of truth**. It is complete: tutorial, verifier guide, solution modal, verifier-marking modal, level-status bar, and ARIA labels are all present.
 
 You need a static file server for this one, because browsers block `file://` script loads in some configurations:
 
@@ -126,10 +129,7 @@ python -m http.server 8000
 
 Then open <http://localhost:8000/src/index.html>.
 
-> [!WARNING]
-> The split build is **behind** the single-file build. As of the last update it is missing the tutorial, the verifier guide, and the ARIA labels. The single-file build is the complete one — play that. See [Keeping the builds in sync](#keeping-the-builds-in-sync).
-
-Changes made in the split build have to be mirrored into the single-file build by hand — there is no bundler doing it. If you forget, the portable file ships stale behaviour.
+Changes made in the split build must be mirrored into `tm-offline.html` before you commit. Run the build script — see [Keeping the builds in sync](#keeping-the-builds-in-sync).
 
 ---
 
@@ -152,26 +152,41 @@ The built-in tutorial covers the interface element by element if you want a guid
 Contributions are welcome. This is a small vanilla JavaScript project, so the barrier is low:
 
 - No dependencies to install.
-- No build step. Edit and reload.
+- Nothing to build to play. Edit and reload.
 - No framework conventions to learn.
 
 If you send a pull request:
 
 - Keep the split build as the source of truth.
-- Regenerate `tm-offline.html` from it before submitting.
+- Run `node tools/build-single-file.js` and commit the regenerated `tm-offline.html` alongside your changes.
 - Keep the unofficial fan-project notice in place. It is not decoration; it is the point.
 
 ---
 
 ## Keeping the builds in sync
 
-There is no bundler. `tm-offline.html` is maintained by hand alongside `src/index.html`, `css/style.css`, and `js/game.js`, and the two have drifted apart.
+`tm-offline.html` is **generated**. Do not edit it by hand — edit the split sources and rebuild:
 
-Today the single-file build is ahead: it has the tutorial, the verifier guide, and the ARIA labels, and the split build does not. That is why the landing page points players at `tm-offline.html`.
+```bash
+node tools/build-single-file.js
+```
 
-If you touch game logic, changes have to go in **both** places, or the portable file will ship stale behaviour. The single-file build inlines its CSS and JS, so a change to `js/game.js` means finding the matching block inside `tm-offline.html` and editing it there too.
+It reads `src/index.html`, `css/style.css`, and `js/game.js`, inlines the CSS and JS, and writes `tm-offline.html`. The script prints whether the result matched the previous file, so a stale `tm-offline.html` is visible immediately:
 
-A small inlining script would remove this footgun. If you want to write one, that would be a genuinely useful contribution.
+```
+build-single-file: wrote tm-offline.html
+  sources   : src/index.html (10784 B), css/style.css (33675 B), js/game.js (166565 B)
+  output    : 210973 bytes, 4424 lines, LF, no BOM
+  match     : identical to the previous tm-offline.html (0 lines changed)
+```
+
+It has zero dependencies and needs no `package.json`. It is optional dev tooling — you still do not need it to play, and the single-file build remains fully self-contained.
+
+The script enforces the repo's `.gitattributes` contract: it fails if any source carries a CR or a UTF-8 BOM, so line-ending churn cannot creep back in.
+
+### Before you commit
+
+If you touched the split sources, regenerate `tm-offline.html` and commit the result. A commit that changes `js/game.js` without the matching `tm-offline.html` ships stale behaviour to anyone playing the portable file.
 
 ---
 
