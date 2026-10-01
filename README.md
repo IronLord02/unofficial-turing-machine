@@ -36,14 +36,12 @@ Full legal scope, disclaimers, and licensing boundaries: see [ATTRIBUTION.md](AT
 > [!NOTE]
 > This repository contains **no artwork from the game**. Nothing was copied, scanned, traced, or recreated from the physical product.
 
-| | |
-| --- | --- |
-| Image files | **Zero.** No `.png`, `.jpg`, `.svg`, `.webp`. No scanned cards, no board photos, no logo, no icon set. |
-| Visuals | Drawn entirely with CSS — borders, background colours, and simple shapes. |
-| Puzzle data | Rendered as `1` and `0` **text characters** on a plain background. Text standing in for physical cards, not images of them. |
-| Fonts | None taken. No `@font-face`, no web fonts, no CDN, no Google Fonts. |
-| Card layout | This project's own arrangement, built for a browser. The original layout was not traced or replicated. |
-| Network | Zero external requests in the single-file build. No analytics, no trackers, no remote assets. |
+- **Image files: zero.** No `.png`, `.jpg`, `.svg`, `.webp`. No scanned cards, no board photos, no logo, no icon set.
+- **Visuals: drawn entirely with CSS.** Borders, background colours, and simple shapes.
+- **Puzzle data: text, not pictures.** The binary sequences are `1` and `0` characters on a plain background, standing in for physical cards rather than depicting them.
+- **Fonts: none taken.** No `@font-face`, no web fonts, no CDN, no Google Fonts.
+- **Card layout: this project's own.** Arranged for a browser. The original layout was not traced or replicated.
+- **Network: zero external requests** in the single-file build. No analytics, no trackers, no remote assets.
 
 The verifier cards deliberately do not rely on colour alone: colourblind mode adds **explicit glyphs** on top of the recoloured palette, so every card state is readable without colour vision.
 
