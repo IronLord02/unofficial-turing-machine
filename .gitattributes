@@ -1,0 +1,5 @@
+# Keep line endings stable regardless of each contributor's
+# core.autocrlf setting. Without this, a Windows contributor with
+# autocrlf=true can rewrite every line of the 200 KB single-file
+# build in a single diff.
+* text=auto eol=lf

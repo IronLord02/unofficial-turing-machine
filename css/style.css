@@ -1,0 +1,804 @@
+/* ============================================================
+   Turing Machine — Compact Grid Edition
+   Theme via CSS variables: dark (default), light, colorblind
+   ============================================================ */
+
+:root {
+    --bg: #1a1a2e;
+    --bg-panel: #16213e;
+    --bg-panel2: #0f1626;
+    --line: #333;
+    --line-strong: #444;
+    --text: #e0e0e0;
+    --text-muted: #aaa;
+    --text-dim: #888;
+    --text-faint: #666;
+    --accent: #0f3460;
+    --accent-hover: #1a5276;
+    --green: #27ae60;
+    --red: #e74c3c;
+    --green-glow: rgba(39, 174, 96, 0.35);
+    --red-glow: rgba(231, 76, 60, 0.35);
+}
+
+[data-theme="light"] {
+    --bg: #f2f5fb;
+    --bg-panel: #ffffff;
+    --bg-panel2: #e9eef8;
+    --line: #d5dbe8;
+    --line-strong: #b9c2d6;
+    --text: #1b2333;
+    --text-muted: #4a5570;
+    --text-dim: #6d7896;
+    --text-faint: #98a2bb;
+    --accent: #2563eb;
+    --accent-hover: #3b82f6;
+    --green: #16a34a;
+    --red: #dc2626;
+    --green-glow: rgba(22, 163, 74, 0.3);
+    --red-glow: rgba(220, 38, 38, 0.3);
+}
+
+/* Colorblind-friendly palette: blue = true, orange = false.
+   Plus explicit glyphs on verified verifiers (see below). */
+[data-cb="on"] {
+    --green: #0077cc;
+    --red: #e07a00;
+    --green-glow: rgba(0, 119, 204, 0.35);
+    --red-glow: rgba(224, 122, 0, 0.35);
+}
+
+/* ============================================================
+   Legacy fallback: browsers WITHOUT CSS custom properties
+   (Android 4.4 default browser / old WebKit). Uses the default
+   dark palette as literals. These rules are overridden by the
+   var() rules that come after them, so modern browsers are
+   unaffected; old browsers keep a readable dark theme.
+   ============================================================ */
+body { background: #1a1a2e; color: #e0e0e0; }
+h1 { color: #e0e0e0; }
+header { border-bottom-color: #333; }
+.control-group label { color: #aaa; }
+select { color: #e0e0e0; background-color: #16213e; border-color: #444; }
+.btn-secondary { background-color: #333; color: #aaa; }
+.cheat-label { color: #aaa; }
+.slot-label { color: #e0e0e0; background-color: #16213e; }
+.slot-btn { background-color: #16213e; color: #aaa; border-color: #333; }
+.slot-btn.active { background-color: #0f3460; border-color: #1a5276; color: #fff; }
+.verifier-rect { background-color: #16213e; border-color: #333; }
+.verifier-name { color: #aaa; }
+.verifier-opts { color: #888; }
+.verifier-answer.satisfied { color: #27ae60; }
+.verifier-answer.not-satisfied { color: #e74c3c; }
+.verifier-answer.neutral { color: #888; }
+.verifier-count { color: #888; }
+.verifier-indicator { background-color: #333; }
+.verifier-indicator.satisfied { background-color: #27ae60; }
+.verifier-indicator.not-satisfied { background-color: #e74c3c; }
+.verifier-rect.rect-satisfied { border-color: #27ae60; box-shadow: 0 0 8px rgba(39, 174, 96, 0.35); }
+.verifier-rect.rect-unsatisfied { border-color: #e74c3c; box-shadow: 0 0 8px rgba(231, 76, 60, 0.35); }
+.verifier-num { background: #0f3460; border-color: #1a5276; color: #fff; }
+.verifier-rect.verified-green { border-color: #27ae60; box-shadow: 0 0 10px rgba(39, 174, 96, 0.35); }
+.verifier-rect.verified-red { border-color: #e74c3c; box-shadow: 0 0 10px rgba(231, 76, 60, 0.35); }
+.verifier-rect.verified-green .verifier-verdict { color: #27ae60; }
+.verifier-rect.verified-red .verifier-verdict { color: #e74c3c; }
+.alt-option { color: #aaa; }
+.alt-option.current { color: #e0e0e0; }
+.sidebar-section { background-color: #16213e; border-color: #333; }
+.sidebar-section h3 { color: #888; }
+.badge { background-color: #16213e; border-color: #333; color: #aaa; }
+.badge-blocked { border-color: #e74c3c; color: #e74c3c; }
+.history-entry { background-color: #0f1626; border-color: #333; }
+.history-turn { color: #e0e0e0; }
+.history-none { color: #666; }
+.history-chip.ok { background: rgba(39, 174, 96, 0.18); color: #27ae60; border-color: #27ae60; }
+.history-chip.no { background: rgba(231, 76, 60, 0.18); color: #e74c3c; border-color: #e74c3c; }
+.toast { background-color: #0f3460; color: #fff; }
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header */
+header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+}
+
+h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 1px;
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.control-group label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+select {
+    background: var(--bg-panel);
+    color: var(--text);
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: var(--accent-hover);
+}
+
+.btn-secondary {
+    background: var(--line);
+    color: var(--text-muted);
+}
+
+.btn-secondary:hover {
+    background: var(--line-strong);
+    color: var(--text);
+}
+
+.cheat-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+/* Code Selector */
+.code-selector {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    margin-bottom: 28px;
+}
+
+.slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.slot-label {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-panel);
+    border-radius: 6px;
+}
+
+.slot-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+.slot-btn {
+    width: 36px;
+    height: 36px;
+    border: 2px solid var(--line);
+    border-radius: 6px;
+    background: var(--bg-panel);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.slot-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+}
+
+.slot-btn.active {
+    background: var(--accent);
+    border-color: var(--accent-hover);
+    color: #fff;
+}
+
+.slot-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.slot-btn:disabled:hover {
+    border-color: var(--line);
+    color: var(--text-muted);
+}
+
+/* Verifiers Grid */
+.verifiers-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 28px;
+}
+
+.verifier-rect {
+    background: var(--bg-panel);
+    border: 2px solid var(--line);
+    border-radius: 8px;
+    padding: 10px;
+    min-width: 130px;
+    max-width: 160px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.verifier-rect:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.verifier-rect.expanded {
+    min-width: 260px;
+    max-width: 300px;
+}
+
+.verifier-name {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+    text-align: center;
+}
+
+.verifier-opts {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    text-align: center;
+    margin-bottom: 4px;
+    letter-spacing: 0.3px;
+}
+
+.verifier-answer {
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-align: center;
+    padding: 6px 0;
+    border-radius: 4px;
+    margin-bottom: 6px;
+}
+
+.verifier-answer.satisfied {
+    background: rgba(39, 174, 96, 0.2);
+    color: var(--green);
+}
+
+.verifier-answer.not-satisfied {
+    background: rgba(231, 76, 60, 0.2);
+    color: var(--red);
+}
+
+.verifier-answer.neutral {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-dim);
+}
+
+.verifier-count {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 2px;
+}
+
+.verifier-indicator {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line);
+    margin-top: 6px;
+}
+
+.verifier-indicator.satisfied {
+    background: var(--green);
+}
+
+.verifier-indicator.not-satisfied {
+    background: var(--red);
+}
+
+/* Border color for whole rectangle based on correctness */
+.verifier-rect.rect-satisfied {
+    border-color: var(--green);
+    box-shadow: 0 0 8px var(--green-glow);
+}
+
+.verifier-rect.rect-unsatisfied {
+    border-color: var(--red);
+    box-shadow: 0 0 8px var(--red-glow);
+}
+
+/* Verifier number badge */
+.verifier-num {
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--accent-hover);
+    z-index: 1;
+}
+
+/* Verdict text shown after verifying */
+.verifier-verdict {
+    font-size: 0.95rem;
+    font-weight: 800;
+    text-align: center;
+    padding: 4px 0;
+    min-height: 20px;
+}
+
+/* Locked verdict states (green = true, red = false) */
+.verifier-rect.verified-green {
+    border-color: var(--green);
+    box-shadow: 0 0 10px var(--green-glow);
+}
+
+.verifier-rect.verified-green .verifier-verdict {
+    color: var(--green);
+}
+
+.verifier-rect.verified-red {
+    border-color: var(--red);
+    box-shadow: 0 0 10px var(--red-glow);
+}
+
+.verifier-rect.verified-red .verifier-verdict {
+    color: var(--red);
+}
+
+.verifier-rect.locked {
+    cursor: default;
+}
+
+/* Verified verifiers keep their color on hover; blocked ones stay dimmed */
+.verifier-rect.verified-green.locked:hover {
+    border-color: var(--green);
+    transform: none;
+}
+
+.verifier-rect.verified-red.locked:hover {
+    border-color: var(--red);
+    transform: none;
+}
+
+.verifier-rect.blocked {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.verifier-rect.blocked:hover {
+    border-color: var(--line);
+    transform: none;
+}
+
+/* Colorblind mode: explicit glyphs in addition to the palette swap */
+[data-cb="on"] .verifier-rect.verified-green::after,
+[data-cb="on"] .verifier-rect.verified-red::after {
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+[data-cb="on"] .verifier-rect.verified-green::after {
+    content: '✓';
+    color: var(--green);
+}
+
+[data-cb="on"] .verifier-rect.verified-red::after {
+    content: '✗';
+    color: var(--red);
+}
+
+/* Mini grid inside expanded verifier */
+.verifier-mini-grid {
+    display: none;
+    margin-top: 8px;
+}
+
+.verifier-rect.expanded .verifier-mini-grid {
+    display: block;
+}
+
+.mini-grid {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-orient: horizontal;
+    -webkit-flex-wrap: wrap;
+    flex-wrap: wrap;
+    gap: 1px;
+    background: var(--bg-panel2);
+    border-radius: 4px;
+    padding: 4px;
+}
+
+/* Modern browsers: exact grid layout (the flex above is a no-op fallback) */
+@supports (display: grid) {
+    .mini-grid {
+        display: grid;
+        gap: 1px;
+    }
+    .mini-cell {
+        margin: 0;
+    }
+}
+
+.mini-cell {
+    width: 8px;
+    height: 8px;
+    border-radius: 1px;
+    margin: 0.5px;
+}
+
+.mini-cell.green {
+    background: var(--green);
+}
+
+.mini-cell.red {
+    background: var(--red);
+}
+
+.mini-cell.empty {
+    background: transparent;
+}
+
+/* Verifier answer alternatives */
+.verifier-alternatives {
+    display: none;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--line);
+}
+
+.verifier-rect.expanded .verifier-alternatives {
+    display: block;
+}
+
+.alt-option {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin-bottom: 2px;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.alt-option:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.alt-option.current {
+    color: var(--text);
+    font-weight: 600;
+}
+
+/* Game layout */
+.game-layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.game-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.game-sidebar {
+    width: 300px;
+    flex-shrink: 0;
+}
+
+.sidebar-section {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 14px;
+}
+
+.sidebar-section h3 {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+}
+
+.turn-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.badge {
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 20px;
+}
+
+.badge-blocked {
+    border-color: var(--red);
+    color: var(--red);
+}
+
+/* History */
+.history-list {
+    max-height: 320px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.history-empty {
+    color: var(--text-faint);
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 12px 0;
+}
+
+.history-entry {
+    background: var(--bg-panel2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
+.history-turn {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+
+.history-none {
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    font-style: italic;
+}
+
+.history-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.history-chip {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.history-chip.ok {
+    background: rgba(39, 174, 96, 0.18);
+    color: var(--green);
+    border: 1px solid var(--green);
+}
+
+.history-chip.no {
+    background: rgba(231, 76, 60, 0.18);
+    color: var(--red);
+    border: 1px solid var(--red);
+}
+
+/* Toast */
+.toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--accent);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    opacity: 0;
+    transition: all 0.25s ease;
+    pointer-events: none;
+    z-index: 100;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .code-selector {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .verifiers-grid {
+        gap: 8px;
+    }
+
+    .verifier-rect {
+        min-width: 110px;
+        max-width: 140px;
+    }
+
+    .game-layout {
+        flex-direction: column;
+    }
+
+    .game-sidebar {
+        width: 100%;
+    }
+}
+
+/* ============================================================
+   Compatibility layer — legacy browsers (Android 4.4 / old WebKit)
+   - Flexbox engine fallback: -webkit-box (2009) -> -webkit-flex (2012) -> flex
+   - Prefixed transforms / transitions
+   - Flex gap emulation (gap needs Chrome >= 84)
+   Modern browsers simply override these with later canonical rules.
+   ============================================================ */
+
+/* 1) Flexbox engine fallback */
+header, .controls, .control-group, .code-selector, .slot,
+.slot-buttons, .slot-label, .verifier-num, .game-layout,
+.turn-bar, .history-list, .history-chips, .verifiers-area {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
+    display: flex;
+}
+
+/* 2009 box orientation: horizontal by default, column for stacks */
+.slot, .history-list, .game-layout, .turn-bar {
+    -webkit-box-orient: vertical;
+}
+.controls, .code-selector, .slot-buttons, .verifiers-area,
+.history-chips {
+    -webkit-box-orient: horizontal;
+}
+
+/* 2009 box centering */
+.slot, .slot-label, .verifier-num, .control-group {
+    -webkit-box-align: center;
+    -webkit-box-pack: center;
+}
+
+/* 2) Prefixed transforms (WebKit < Safari 6.1) */
+.verifier-rect:hover {
+    -webkit-transform: translateY(-2px);
+}
+.toast {
+    -webkit-transform: translateX(-50%) translateY(80px);
+}
+.toast.show {
+    -webkit-transform: translateX(-50%) translateY(0);
+}
+
+/* 3) Prefixed transitions */
+body {
+    -webkit-transition: background 0.2s ease, color 0.2s ease;
+}
+.btn, .btn-secondary, .slot-btn, .verifier-rect {
+    -webkit-transition: all 0.15s ease;
+}
+.verifier-rect {
+    -webkit-transition: all 0.2s ease;
+}
+.alt-option {
+    -webkit-transition: background 0.1s;
+}
+.toast {
+    -webkit-transition: all 0.25s ease;
+}
+
+/* 4) Flex gap emulation: browsers without gap (Chrome < 84).
+       @supports is ignored by the oldest WebKit, which keeps the
+       2009 box layout above instead. */
+@supports not (gap: 10px) {
+    .controls > * { margin: 0 6px; }
+    .code-selector .slot { margin: 0 12px; }
+    .slot-buttons .slot-btn { margin: 0 2px; }
+    .verifiers-grid .verifier-rect { margin: 5px; }
+    .turn-bar .badge, .turn-bar .btn { margin: 0 7px; }
+    .history-list .history-entry { margin: 5px 0; }
+    .history-chips .history-chip { margin: 0 3px; }
+    .verifiers-area .verifiers-grid { margin: 0 5px; }
+}
