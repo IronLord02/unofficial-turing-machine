@@ -3,113 +3,344 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Turing Machine</title>
-    <link rel="stylesheet" href="css/style.css">
+    <title>Turing Machine — Unofficial Web Adaptation</title>
+    <meta name="description" content="An unofficial, fan-made web adaptation of the Turing Machine board game by Le Scorpion Masque. Plays in your browser, fully offline, no install and no server.">
+    <meta name="color-scheme" content="dark light">
+    <style>
+/* ============================================================
+   Landing page — no external requests, no images, no web fonts.
+   Every visual is CSS. Same palette family as the game itself.
+   ============================================================ */
+
+:root {
+    --bg: #14142b;
+    --bg-panel: #1c1c38;
+    --bg-panel2: #232346;
+    --line: #34345c;
+    --text: #e6e6f0;
+    --text-muted: #b4bad4;
+    --accent: #3b82f6;
+    --accent-strong: #1d4ed8;
+    --warn-bg: #2a2013;
+    --warn-line: #7a5a1e;
+    --warn-text: #f0d9a8;
+    --maxw: 46rem;
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --bg: #f4f6fc;
+        --bg-panel: #ffffff;
+        --bg-panel2: #e9eef8;
+        --line: #ccd4e6;
+        --text: #1b2333;
+        --text-muted: #4d5875;
+        --accent: #1d4ed8;
+        --accent-strong: #1e40af;
+        --warn-bg: #fdf6e6;
+        --warn-line: #d9b866;
+        --warn-text: #4a3410;
+    }
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    padding: 2.5rem 1.25rem 4rem;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.65;
+}
+
+.wrap { max-width: var(--maxw); margin: 0 auto; }
+
+a { color: var(--accent); }
+
+a:focus-visible,
+.cta:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
+/* ---------- masthead ---------- */
+
+.masthead { text-align: center; margin-bottom: 2.75rem; }
+
+.eyebrow {
+    display: inline-block;
+    margin: 0 0 1.25rem;
+    padding: 0.3rem 0.8rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 0.78rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+h1 {
+    margin: 0 0 0.75rem;
+    font-size: clamp(2.1rem, 7vw, 3.1rem);
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+}
+
+.tagline {
+    margin: 0 auto 2rem;
+    max-width: 34rem;
+    color: var(--text-muted);
+}
+
+.cta {
+    display: inline-block;
+    padding: 0.9rem 2.4rem;
+    background: var(--accent-strong);
+    color: #fff;
+    font-size: 1.12rem;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 8px;
+}
+
+.cta:hover { background: var(--accent); }
+
+.cta-note {
+    margin: 0.9rem 0 0;
+    font-size: 0.86rem;
+    color: var(--text-muted);
+}
+
+/* ---------- callout ---------- */
+
+.callout {
+    margin: 0 0 2.5rem;
+    padding: 1.15rem 1.35rem;
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-line);
+    border-left-width: 4px;
+    border-radius: 6px;
+    color: var(--warn-text);
+    font-size: 0.95rem;
+}
+
+.callout p { margin: 0 0 0.75rem; }
+.callout p:last-child { margin-bottom: 0; }
+.callout strong { color: inherit; }
+
+/* ---------- sections ---------- */
+
+section { margin-bottom: 2.75rem; }
+
+h2 {
+    margin: 0 0 1rem;
+    font-size: 1.3rem;
+    letter-spacing: -0.01em;
+}
+
+.card {
+    padding: 1.25rem 1.4rem;
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+}
+
+dl.facts { margin: 0; }
+
+dl.facts div {
+    display: flex;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    border-top: 1px solid var(--line);
+}
+
+dl.facts div:first-child { border-top: 0; padding-top: 0; }
+
+dl.facts dt {
+    flex: 0 0 9.5rem;
+    font-weight: 600;
+}
+
+dl.facts dd { margin: 0; color: var(--text-muted); }
+
+ol.steps { margin: 0; padding-left: 1.3rem; }
+ol.steps li { margin-bottom: 0.5rem; }
+ol.steps li:last-child { margin-bottom: 0; }
+
+ul.plain { margin: 0; padding-left: 1.3rem; }
+ul.plain li { margin-bottom: 0.4rem; }
+ul.plain li:last-child { margin-bottom: 0; }
+
+code {
+    padding: 0.1rem 0.35rem;
+    background: var(--bg-panel2);
+    border-radius: 4px;
+    font-size: 0.88em;
+}
+
+.foot {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.88rem;
+    color: var(--text-muted);
+}
+
+.foot p { margin: 0 0 0.6rem; }
+.foot p:last-child { margin-bottom: 0; }
+
+@media (max-width: 30rem) {
+    dl.facts div { flex-direction: column; gap: 0.1rem; }
+    dl.facts dt { flex: none; }
+}
+    </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Turing Machine</h1>
-            <div class="controls">
-                <div class="control-group">
-                    <label for="language" id="language-label">Language</label>
-                    <select id="language">
-                        <option value="en" selected>English</option>
-                        <option value="es">Español</option>
-                        <option value="fr">Français</option>
-                        <option value="de">Deutsch</option>
-                        <option value="ru">Русский</option>
-                    </select>
-                </div>
-                <div class="control-group">
-                    <label for="difficulty" id="difficulty-label">Difficulty</label>
-                    <select id="difficulty">
-                        <option value="0">Easy</option>
-                        <option selected value="1">Medium</option>
-                        <option value="2">Hard</option>
-                    </select>
-                </div>
-                <div class="control-group">
-                    <label for="verifiers" id="verifiers-label">Verifiers</label>
-                    <select id="verifiers">
-                        <option>3</option>
-                        <option selected>4</option>
-                        <option>5</option>
-                        <option>6</option>
-                        <option>7</option>
-                    </select>
-                </div>
-                <button id="newgame" class="btn btn-primary">New Game</button>
-                <button id="solution" class="btn btn-secondary">Solution</button>
-                <label class="cheat-label" title="Cheat">
-                    <input id="cheat" type="checkbox"> <span id="cheat-label">Cheat</span>
-                </label>
-                <button id="theme-toggle" class="btn btn-secondary">Light</button>
-                <label class="cheat-label" title="Colorblind-friendly palette">
-                    <input id="colorblind" type="checkbox"> <span id="colorblind-label">Colorblind</span>
-                </label>
-            </div>
-        </header>
+<div class="wrap">
 
-        <div class="game-layout">
-            <main class="game-main">
-                <section class="code-selector">
-                    <div class="slot" id="slot-a">
-                        <span class="slot-label">A</span>
-                        <div class="slot-buttons">
-                            <button class="slot-btn" data-value="x">x</button>
-                            <button class="slot-btn" data-value="1">1</button>
-                            <button class="slot-btn" data-value="2">2</button>
-                            <button class="slot-btn" data-value="3">3</button>
-                            <button class="slot-btn" data-value="4">4</button>
-                            <button class="slot-btn" data-value="5">5</button>
-                        </div>
-                    </div>
-                    <div class="slot" id="slot-b">
-                        <span class="slot-label">B</span>
-                        <div class="slot-buttons">
-                            <button class="slot-btn" data-value="x">x</button>
-                            <button class="slot-btn" data-value="1">1</button>
-                            <button class="slot-btn" data-value="2">2</button>
-                            <button class="slot-btn" data-value="3">3</button>
-                            <button class="slot-btn" data-value="4">4</button>
-                            <button class="slot-btn" data-value="5">5</button>
-                        </div>
-                    </div>
-                    <div class="slot" id="slot-c">
-                        <span class="slot-label">C</span>
-                        <div class="slot-buttons">
-                            <button class="slot-btn" data-value="x">x</button>
-                            <button class="slot-btn" data-value="1">1</button>
-                            <button class="slot-btn" data-value="2">2</button>
-                            <button class="slot-btn" data-value="3">3</button>
-                            <button class="slot-btn" data-value="4">4</button>
-                            <button class="slot-btn" data-value="5">5</button>
-                        </div>
-                    </div>
-                </section>
+    <header class="masthead">
+        <p class="eyebrow">Unofficial fan project</p>
+        <h1>Turing Machine</h1>
+        <p class="tagline">
+            A web adaptation of the deduction puzzle board game. Runs entirely in your
+            browser: no install, no server, no account, no internet.
+        </p>
+        <a class="cta" href="tm-offline.html">Play in the browser</a>
+        <p class="cta-note">
+            One self-contained file, about 200&nbsp;KB. Works offline too — save it to a
+            USB stick and it still runs.
+        </p>
+    </header>
 
-                <div class="turn-bar">
-                    <span id="verifications-left" class="badge">Verifications: 3/3</span>
-                    <button id="pass-turn" class="btn btn-primary">Pass Turn</button>
-                </div>
-
-                <section class="verifiers-grid" id="verifiers-grid">
-                    <!-- Verifier rectangles injected by JS -->
-                </section>
-            </main>
-
-            <aside class="game-sidebar">
-                <div class="sidebar-section">
-                    <h3 id="history-title">History</h3>
-                    <div id="history-list" class="history-list"></div>
-                </div>
-            </aside>
-        </div>
+    <div class="callout">
+        <p>
+            <strong>This is an unofficial fan project.</strong> It is not affiliated with,
+            endorsed by, licensed by, or sponsored by <strong>Le Scorpion Masqu&eacute;</strong>,
+            the designer and publisher of Turing Machine.
+        </p>
+        <p>
+            All credit for the game, its name, its design, and its puzzle content belongs
+            to them. No original artwork, image asset, or font was used here.
+        </p>
+        <p>
+            <strong>Please buy the physical game.</strong> Cards, pencil, a table, friends
+            across it. Playing on a screen will never be the same.
+            <a href="https://www.scorpionmasque.com/en/turingmachine">Le Scorpion Masqu&eacute;</a>
+        </p>
     </div>
 
-    <div id="toast" class="toast"></div>
+    <main>
+        <section>
+            <h2>What it is</h2>
+            <p>
+                A secret three-digit code is hidden somewhere in a set of binary sequences.
+                Your job is to find it.
+            </p>
+            <p>
+                You write a short program across three slots labelled <strong>A</strong>,
+                <strong>B</strong> and <strong>C</strong>, then test your guess against
+                <strong>verifier cards</strong>. Each card tests one condition about the
+                hidden sequence and answers yes or no. A verifier only runs when all three
+                slots hold a real digit, so <code>x</code> — meaning &ldquo;I don't know
+                yet&rdquo; — is what lets you run a card instead of guessing.
+            </p>
+            <p>
+                Use the answers to eliminate what cannot be true, repeat until one code
+                remains, and submit it.
+            </p>
+        </section>
 
-    <script src="js/game.js"></script>
+        <section>
+            <h2>What is in this adaptation</h2>
+            <div class="card">
+                <dl class="facts">
+                    <div>
+                        <dt>Languages</dt>
+                        <dd>5 — English, Espa&ntilde;ol, Fran&ccedil;ais, Deutsch, &#1055;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;</dd>
+                    </div>
+                    <div>
+                        <dt>Difficulty</dt>
+                        <dd>Easy, Medium, Hard</dd>
+                    </div>
+                    <div>
+                        <dt>Verifiers</dt>
+                        <dd>3 to 7, your choice</dd>
+                    </div>
+                    <div>
+                        <dt>Program slots</dt>
+                        <dd>3 (A, B, C), each taking <code>x</code> or a digit 1&ndash;5</dd>
+                    </div>
+                    <div>
+                        <dt>Built in</dt>
+                        <dd>Step-by-step tutorial, verifier guide, optional cheat mode</dd>
+                    </div>
+                    <div>
+                        <dt>Accessibility</dt>
+                        <dd>Dark, light, and a colorblind mode that adds explicit glyphs, so
+                            no card state depends on colour alone</dd>
+                    </div>
+                    <div>
+                        <dt>Dependencies</dt>
+                        <dd>None. No build step, no libraries, no network requests</dd>
+                    </div>
+                </dl>
+            </div>
+        </section>
+
+        <section>
+            <h2>Level generation</h2>
+            <p>
+                The generator builds playable puzzles with a unique solution, and it works
+                reliably. To be straight about it: it is <strong>not the official
+                algorithm</strong>, and it is <strong>not an original invention</strong>
+                by the author of this project. The official generator belongs to
+                Le Scorpion Masqu&eacute; and lives at
+                <a href="https://turingmachine.info/">turingmachine.info</a>.
+            </p>
+        </section>
+
+        <section>
+            <h2>Credits</h2>
+            <ul class="plain">
+                <li>
+                    <strong>Le Scorpion Masqu&eacute;</strong> — designer and publisher of
+                    Turing Machine. The game, the name, the design, and the original puzzle
+                    content are theirs.
+                    <a href="https://www.scorpionmasque.com/en/turingmachine">Official site</a>
+                </li>
+                <li>
+                    <strong>Mathieu Lamarche</strong> — author of
+                    <a href="https://github.com/amoshk/turing-web">amoshk/turing-web</a>,
+                    consulted as prior art. It carries no license, so no code from it was
+                    copied; the approach to level generation was rewritten from scratch.
+                </li>
+                <li>
+                    <strong><a href="https://github.com/IronLord02">IronLord02</a></strong>
+                    — author of this independent implementation.
+                </li>
+            </ul>
+            <p>
+                The MIT license covers this project's own source code only. The full
+                breakdown of what the license does and does not cover is in
+                <a href="https://github.com/IronLord02/turing-machine-web/blob/main/ATTRIBUTION.md">ATTRIBUTION.md</a>.
+            </p>
+        </section>
+    </main>
+
+    <footer class="foot">
+        <p>
+            Source, issue tracker, and the split build for reading and contributing:
+            <a href="https://github.com/IronLord02/turing-machine-web">github.com/IronLord02/turing-machine-web</a>
+        </p>
+        <p>
+            This page and the game are plain HTML, CSS, and JavaScript. No images, no web
+            fonts, no trackers, no network requests.
+        </p>
+    </footer>
+
+</div>
 </body>
 </html>

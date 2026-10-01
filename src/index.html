@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turing Machine</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Turing Machine</h1>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="language" id="language-label">Language</label>
+                    <select id="language">
+                        <option value="en" selected>English</option>
+                        <option value="es">Español</option>
+                        <option value="fr">Français</option>
+                        <option value="de">Deutsch</option>
+                        <option value="ru">Русский</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="difficulty" id="difficulty-label">Difficulty</label>
+                    <select id="difficulty">
+                        <option value="0">Easy</option>
+                        <option selected value="1">Medium</option>
+                        <option value="2">Hard</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="verifiers" id="verifiers-label">Verifiers</label>
+                    <select id="verifiers">
+                        <option>3</option>
+                        <option selected>4</option>
+                        <option>5</option>
+                        <option>6</option>
+                        <option>7</option>
+                    </select>
+                </div>
+                <button id="newgame" class="btn btn-primary">New Game</button>
+                <button id="solution" class="btn btn-secondary">Solution</button>
+                <label class="cheat-label" title="Cheat">
+                    <input id="cheat" type="checkbox"> <span id="cheat-label">Cheat</span>
+                </label>
+                <button id="theme-toggle" class="btn btn-secondary">Light</button>
+                <label class="cheat-label" title="Colorblind-friendly palette">
+                    <input id="colorblind" type="checkbox"> <span id="colorblind-label">Colorblind</span>
+                </label>
+            </div>
+        </header>
+
+        <div class="game-layout">
+            <main class="game-main">
+                <section class="code-selector">
+                    <div class="slot" id="slot-a">
+                        <span class="slot-label">A</span>
+                        <div class="slot-buttons">
+                            <button class="slot-btn" data-value="x">x</button>
+                            <button class="slot-btn" data-value="1">1</button>
+                            <button class="slot-btn" data-value="2">2</button>
+                            <button class="slot-btn" data-value="3">3</button>
+                            <button class="slot-btn" data-value="4">4</button>
+                            <button class="slot-btn" data-value="5">5</button>
+                        </div>
+                    </div>
+                    <div class="slot" id="slot-b">
+                        <span class="slot-label">B</span>
+                        <div class="slot-buttons">
+                            <button class="slot-btn" data-value="x">x</button>
+                            <button class="slot-btn" data-value="1">1</button>
+                            <button class="slot-btn" data-value="2">2</button>
+                            <button class="slot-btn" data-value="3">3</button>
+                            <button class="slot-btn" data-value="4">4</button>
+                            <button class="slot-btn" data-value="5">5</button>
+                        </div>
+                    </div>
+                    <div class="slot" id="slot-c">
+                        <span class="slot-label">C</span>
+                        <div class="slot-buttons">
+                            <button class="slot-btn" data-value="x">x</button>
+                            <button class="slot-btn" data-value="1">1</button>
+                            <button class="slot-btn" data-value="2">2</button>
+                            <button class="slot-btn" data-value="3">3</button>
+                            <button class="slot-btn" data-value="4">4</button>
+                            <button class="slot-btn" data-value="5">5</button>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="turn-bar">
+                    <span id="verifications-left" class="badge">Verifications: 3/3</span>
+                    <button id="pass-turn" class="btn btn-primary">Pass Turn</button>
+                </div>
+
+                <section class="verifiers-grid" id="verifiers-grid">
+                    <!-- Verifier rectangles injected by JS -->
+                </section>
+            </main>
+
+            <aside class="game-sidebar">
+                <div class="sidebar-section">
+                    <h3 id="history-title">History</h3>
+                    <div id="history-list" class="history-list"></div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="../js/game.js"></script>
+</body>
+</html>

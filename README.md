@@ -82,7 +82,17 @@ There is also a legacy CSS compatibility layer for browsers without CSS custom p
 
 ## Running it
 
-Two builds ship in this repository. Both are the same game.
+Play it live: <https://ironlord02.github.io/turing-machine-web/>
+
+```
+index.html        the landing page (served at /)
+src/index.html    the split build's markup
+css/style.css     the split build's styles
+js/game.js        the split build's game logic
+tm-offline.html   the single-file build
+```
+
+Two builds of the same game ship here. They are **not currently in sync** — see the warning below.
 
 ### Single-file portable build (recommended for playing)
 
@@ -90,21 +100,21 @@ Two builds ship in this repository. Both are the same game.
 tm-offline.html
 ```
 
-About 200 KB, fully self-contained. CSS and JS are inlined, there are zero external requests, and it includes the tutorial.
+About 200 KB, fully self-contained. CSS and JS are inlined, there are zero external requests, and it includes the tutorial, the verifier guide, and the ARIA labels.
 
 **Double-click it.** Open it from disk, on a USB stick, on a shared computer, anywhere. No internet connection, no web server, no install step. Nothing to break, nothing to configure.
 
 ### Split build (recommended for reading and contributing)
 
 ```
-index.html
+src/index.html
 css/style.css
- js/game.js
+js/game.js
 ```
 
 | File | Size | Role |
 | --- | --- | --- |
-| `index.html` | 5.4 KB | Markup |
+| `src/index.html` | 5.4 KB | Markup |
 | `css/style.css` | 17.7 KB | Styles |
 | `js/game.js` | 96 KB | All game logic, level generation, and i18n strings |
 
@@ -114,7 +124,10 @@ You need a static file server for this one, because browsers block `file://` scr
 python -m http.server 8000
 ```
 
-Then open <http://localhost:8000/index.html>.
+Then open <http://localhost:8000/src/index.html>.
+
+> [!WARNING]
+> The split build is **behind** the single-file build. As of the last update it is missing the tutorial, the verifier guide, and the ARIA labels. The single-file build is the complete one — play that. See [Keeping the builds in sync](#keeping-the-builds-in-sync).
 
 Changes made in the split build have to be mirrored into the single-file build by hand — there is no bundler doing it. If you forget, the portable file ships stale behaviour.
 
@@ -147,6 +160,18 @@ If you send a pull request:
 - Keep the split build as the source of truth.
 - Regenerate `tm-offline.html` from it before submitting.
 - Keep the unofficial fan-project notice in place. It is not decoration; it is the point.
+
+---
+
+## Keeping the builds in sync
+
+There is no bundler. `tm-offline.html` is maintained by hand alongside `src/index.html`, `css/style.css`, and `js/game.js`, and the two have drifted apart.
+
+Today the single-file build is ahead: it has the tutorial, the verifier guide, and the ARIA labels, and the split build does not. That is why the landing page points players at `tm-offline.html`.
+
+If you touch game logic, changes have to go in **both** places, or the portable file will ship stale behaviour. The single-file build inlines its CSS and JS, so a change to `js/game.js` means finding the matching block inside `tm-offline.html` and editing it there too.
+
+A small inlining script would remove this footgun. If you want to write one, that would be a genuinely useful contribution.
 
 ---
 
