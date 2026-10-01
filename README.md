@@ -101,7 +101,7 @@ Two builds of the same game ship here. **They are in sync** — `tm-offline.html
 tm-offline.html
 ```
 
-About 208 KB, fully self-contained. CSS and JS are inlined, there are zero external requests, and it includes the tutorial, the verifier guide, the solution and verifier-marking modals, and the ARIA labels.
+About 211 KB, fully self-contained. CSS and JS are inlined, there are zero external requests, and it includes the tutorial, the verifier guide, the solution and verifier-marking modals, and the ARIA labels.
 
 **Double-click it.** Open it from disk, on a USB stick, on a shared computer, anywhere. No internet connection, no web server, no install step. Nothing to break, nothing to configure.
 
